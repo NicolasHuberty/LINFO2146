@@ -3,6 +3,7 @@
 #include "net/nullnet/nullnet.h"
 #include "net/packetbuf.h"
 #include "net/linkaddr.h"
+#include "net/routing/routing.h"
 #include "random.h"
 #include <string.h>
 #include <stdlib.h>
@@ -15,7 +16,7 @@
 #define SEND_INTERVAL (8 * CLOCK_SECOND)
 
 static linkaddr_t parent_node = {{0, 0}};
-uint16_t values[3];   
+uint16_t values[3];
 static int random_value = 0;
 
 int best_rssi = -999;
@@ -26,6 +27,15 @@ struct message {
  int data;
 };
 
+struct parent_info {
+  linkaddr_t addr; // Parent node address
+  int rssi; // RSSI value of the last received message from this parent
+};
+
+struct parent_info parents[10];
+linkaddr_t parent_list[10];
+int num_parents = 0;
+
 /*---------------------------------------------------------------------------*/
 PROCESS(sensor_node_process, "Sensor Node Process");
 AUTOSTART_PROCESSES(&sensor_node_process);
@@ -34,25 +44,66 @@ AUTOSTART_PROCESSES(&sensor_node_process);
 void input_callback(const void *data, uint16_t len,
   const linkaddr_t *src, const linkaddr_t *dest) {
   if(len == sizeof(struct message)) {
-  // Cast the message payload to a struct message pointer
-  struct message *msg = (struct message*) data;
-  printf("received %d from ", msg->data);
-  if(msg->nodeType == 0) {
-    printf("SENSOR ");
+    // Cast the message payload to a struct message pointer
+    struct message *msg = (struct message*) data;
+    printf("received %d from ", msg->data);
+    if(msg->nodeType == 0) {
+      printf("SENSOR ");
+    } else {
+      printf("COORDINATOR ");
+    } 
+    
+    printf("node %d.%d with RSSI %d \n", src->u8[0], src->u8[1], msg->rssi);
+
+    //This is the message that shows potential parents
+    if(msg->data == 42){
+      // Check if this parent is already in the list
+      int parent_index = -1;
+      for(int i=0; i<num_parents; i++){
+      if(linkaddr_cmp(&parent_list[i], src)){
+      parent_index = i;
+      break;
+      }
+      }
+
+      if(parent_index == -1){
+        // Add the new parent to the list
+        parent_list[num_parents] = *src;
+        parents[num_parents].addr = *src; 
+        parents[num_parents].rssi = packetbuf_attr(PACKETBUF_ATTR_RSSI);
+        num_parents += 1;
+        printf("Number of parents: %d\n", num_parents);
+        printf("The parent: %d.%d has been added to the list \n", parents[num_parents].addr.u8[0], parents[num_parents].addr.u8[1]);
+
+    } else{
+    // Update the RSSI value for an existing parent
+      parents[parent_index].rssi = packetbuf_attr(PACKETBUF_ATTR_RSSI);
+      }
+    }
   } else {
-    printf("COORDINATOR ");
-  } 
-  printf("node %d.%d with RSSI %d \n", src->u8[0], src->u8[1], msg->rssi);
-  
-  if(msg->data == 42){
-    parent_node = *src; // Set parent_node to current node
-    printf("chose a coordinator with address %d.%d as its parent\n", src->u8[0], src->u8[1]);
-  }
-  } else {
-  printf("Invalid message length: %d (expected %d)\n", len, sizeof(struct message));
+    printf("Invalid message length: %d (expected %d)\n", len, sizeof(struct message));
   }
 }
 /*---------------------------------------------------------------------------*/
+void choose_parent() {
+  // Choose parent with highest RSSI value
+  int best_rssi = -100;
+  int best_rssi_index = -1;
+  for(int i = 0; i < num_parents; i++) {
+  if(parents[i].rssi > best_rssi) {
+      best_rssi = parents[i].rssi;
+      best_rssi_index = i;
+    }
+  }
+
+  if(best_rssi_index != -1) {
+    // Set selected parent
+    parent_node = parents[best_rssi_index].addr;
+    printf("Selected parent: %d.%d\n", parent_node.u8[0], parent_node.u8[1]);
+
+  }
+}
+
 void create_message(int rssi, int nodeType, int data){
  
   // Allocate memory for the message
@@ -64,16 +115,14 @@ void create_message(int rssi, int nodeType, int data){
   msg->nodeType=nodeType;
   msg->data=data;
   
-  printf("Parent node: %d.%d\n", parent_node.u8[0], parent_node.u8[1]);
-
-  LOG_INFO("OLD rssi %d\n", best_rssi);
-  if(rssi > best_rssi){ 
-    best_rssi = rssi;
-    LOG_INFO("NEW rssi %d\n", best_rssi);
-  }
+  choose_parent();
   
-   // Send message to all nodes in the network
+   // Broadcast: Send message to all nodes in the network
   if(parent_node.u8[0] == 0) {
+    /*if no parents are selected yet, the coord node checks for message data with "123" in it to know that 
+    this sensor node is searching for a parent*/
+    printf("No parent yet, so default chosen: %d.%d\n", parent_node.u8[0], parent_node.u8[1]);
+    msg->data=123;
     uint8_t len = sizeof(struct message);
     void *payload = (void*)msg;
     memcpy(nullnet_buf, payload, len);
@@ -82,8 +131,9 @@ void create_message(int rssi, int nodeType, int data){
   
     printf("Sensor Sent Message to all nodes\n");
   }
-  // Send message only to the selected parent
+  // Unicast: Send message only to the selected parent
   else {
+  printf("Parent node chosen: %d.%d\n", parent_node.u8[0], parent_node.u8[1]);
     uint8_t len = sizeof(struct message);
     void *payload = (void*)msg;
     memcpy(nullnet_buf, payload, len);
