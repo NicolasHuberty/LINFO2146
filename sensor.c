@@ -80,9 +80,7 @@ void input_callback(const void *data, uint16_t len,
       parents[parent_index].rssi = packetbuf_attr(PACKETBUF_ATTR_RSSI);
       }
     }
-  } else {
-    printf("Invalid message length: %d (expected %d)\n", len, sizeof(struct message));
-  }
+  } 
 }
 /*---------------------------------------------------------------------------*/
 void choose_parent() {
@@ -162,23 +160,21 @@ PROCESS_THREAD(sensor_node_process, ev, data) {
   nullnet_set_input_callback(input_callback);
 
    while(1) {
- 
+    /* Generate random sensor data */
+    for(int j = 0; j < 3; j++) {
+      values[j] = (random_rand() % 100) + 50;
+    }
 
-  /* Generate random sensor data */
-  for(int j = 0; j < 3; j++) {
-    values[j] = (random_rand() % 100) + 50;
-  }
+    /* Send random generated data */
+    random_value = values[random_rand() % 3];
+      create_message(-(rssi), 0, random_value);
 
-  /* Send random generated data */
-  random_value = values[random_rand() % 3];
-    create_message(-(rssi), 0, random_value);
+    count++;
 
-  count++;
-
-    /* Wait for the next transmission interval */
-    etimer_set(&periodic_timer, SEND_INTERVAL);        
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-    etimer_reset(&periodic_timer);
+      /* Wait for the next transmission interval */
+      etimer_set(&periodic_timer, SEND_INTERVAL);        
+      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+      etimer_reset(&periodic_timer);
   }
 
   PROCESS_END();
