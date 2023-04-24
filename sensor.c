@@ -12,6 +12,7 @@
 
 #include "utils.h"
 
+
 #define LOG_MODULE "Sensor"
 #define LOG_LEVEL LOG_LEVEL_INFO
 #define MAX_PARENTS 10
@@ -51,13 +52,16 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 
   struct message *msg = (struct message*) data;
   
-  printf("received %d from ", msg->data);
+  /*
+    printf("received %d from ", msg->data);
   if(msg->nodeType == 0) {
     printf("SENSOR ");
   } else {
     printf("COORDINATOR ");
   } 
   printf("node %d.%d with RSSI %d \n", src->u8[0], src->u8[1], msg->rssi);
+  */
+
   
   // Check if the message is from the parent node
   if(linkaddr_cmp(&parent_node, src)) {
@@ -77,7 +81,7 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
     printf("Parent node %d.%d is no longer alive, it has been removed from the list\n", src->u8[0], src->u8[1]);
   }
 
-  if(msg->data == 42){
+  if(msg->type == RESPONSE_HELLO_MSG){
     // Check if this parent is already in the list
     int parent_index = -1;
     for(int i=0; i<num_parents; i++){
@@ -100,7 +104,13 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
       // Update the RSSI value for an existing parent
       parents[parent_index].rssi = packetbuf_attr(PACKETBUF_ATTR_RSSI);
     }
-  } 
+  }
+  if(msg->type == ALLOW_SEND_DATA && msg->nodeType == 1){
+
+      /* Generate and send random data */
+      int random_value = (random_rand() % 100) + 50;
+      create_unicast_message_data(*src, DATA, random_value);
+    } 
 }
 
 /*---------------------------------------------------------------------------*/
@@ -120,6 +130,8 @@ void choose_parent() {
     // Set selected parent
     parent_node = parents[best_rssi_index].addr;
     printf("Selected parent: %d.%d\n", parent_node.u8[0], parent_node.u8[1]);
+    create_unicast_message(parent_node, packetbuf_attr(PACKETBUF_ATTR_RSSI), 0, CHOSEN_PARENT, 0);
+    
   } else {
     parent_node.u8[0] = 0;
     parent_node.u8[1] = 0;

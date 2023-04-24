@@ -2,10 +2,7 @@
 #include <stdlib.h>
 #include "net/nullnet/nullnet.h"
 #include "net/linkaddr.h"
-#define HELLO_TYPE 1
-#define ASK_CLOCK_TYPE 2
-#define GIVE_CLOCK_TYPE 3
-#define SET_CLOCK_TYPE 4 //rssi used to store the time slot
+
 
 void create_multicast_message(int rssi, int eachNodeType,int type,clock_time_t clock_value) {
   // Allocate memory for the message
@@ -50,4 +47,49 @@ void create_unicast_message(linkaddr_t addr,int rssi, int eachNodeType,int type,
   NETSTACK_NETWORK.output(&addr);
 
   free(msg);
+}
+
+void create_unicast_message_data(linkaddr_t addr, int type, int random_value) {
+  // Allocate memory for the message
+  struct message_data *msg;
+  msg = (struct message_data*) malloc(sizeof(struct message_data));
+
+  //creation
+  msg->addr = addr;
+  msg->type = type;
+  msg->data = random_value;
+
+  // Set nullnet buffer and length
+  nullnet_buf = (uint8_t *)msg;
+  nullnet_len = sizeof(struct message_data);
+
+  //sending
+  NETSTACK_NETWORK.output(&addr);
+
+  free(msg);
+}
+
+void create_unicast_transfer_data(linkaddr_t border_router_addr, int type,struct sensor_info sensors[256], int nb_sensors){
+  // Allocate memory for the message
+  struct message_array_data *msg;
+  msg = (struct message_array_data*) malloc(sizeof(struct message_array_data));
+
+  //creation
+  msg->addr = border_router_addr;
+  msg->type = type;
+  msg->nb_sensors = nb_sensors;
+  for (int i = 0; i < nb_sensors; i++)
+  {
+    msg->sensors[i] = sensors[i];
+  }
+  
+  // Set nullnet buffer and length
+  nullnet_buf = (uint8_t *)msg;
+  nullnet_len = sizeof(struct message_array_data);
+
+  //sending
+  NETSTACK_NETWORK.output(&border_router_addr);
+
+  free(msg);
+
 }

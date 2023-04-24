@@ -15,11 +15,7 @@
 #define MAX_COORDINATORS 10
 #define TIME_SLOT_DURATION CLOCK_SECOND // Set the duration of the time slot
 
-#define HELLO_TYPE 1
-#define ASK_CLOCK_TYPE 2
-#define GIVE_CLOCK_TYPE 3
-#define SET_CLOCK_TYPE 4 //rssi used to store the time slot
-void berkeley_algorithm();
+
 struct coordinator_info {
   linkaddr_t addr;
   clock_time_t clock_value;
@@ -32,6 +28,11 @@ static clock_time_t clock_offset = 0;
 
 struct coordinator_info coordinators[MAX_COORDINATORS];
 uint8_t num_coordinators = 0;
+
+struct sensor_info sensors[1024];
+int nb_total_sensors = 0;
+
+void berkeley_algorithm();
 
 void remove_non_responsive_coordinators() {
   uint8_t i = 0;
@@ -85,43 +86,62 @@ void input_callback(const void *data, uint16_t len,
   const linkaddr_t *src, const linkaddr_t *dest)
 {
   // Check if the message length is correct
-  if(len != sizeof(struct message)) {
+  if(len != sizeof(struct message) && len != sizeof(struct message_array_data)) {
     printf("Invalid message length: %d (expected %d)\n", (int)len, (int)sizeof(struct message));
   }
+  if (len == sizeof(struct message)){
 
-  // Cast the message payload to a struct message pointer
-  struct message *msg = (struct message*) data;
+      // Cast the message payload to a struct message pointer
+      struct message *msg = (struct message*) data;
 
-  // Check if the message is received during the assigned time slot
-  // for (uint8_t i = 0; i < num_coordinators; i++) {
-  //   if (linkaddr_cmp(src, &coordinators[i].addr)) {
-  //     clock_time_t current_time = clock_time();
-  //     if (current_time < coordinators[i].time_slot_start || current_time >= coordinators[i].time_slot_start + TIME_SLOT_DURATION) {
-  //       printf("Message received outside the assigned time slot from coordinator %d.%d, ignoring...\n", src->u8[0], src->u8[1]);
-  //       return;
-  //     }
-  //     break;
-  //   }
-  // }
-  printf("RECEIVE A MESSAGE");
-  // Process the message based on its type
-  if(msg->type == HELLO_TYPE){
-    linkaddr_copy(&coordinators[num_coordinators].addr, src);
-      coordinators[num_coordinators].time_slot_start = TIME_SLOT_DURATION * num_coordinators;
-      coordinators[num_coordinators].clock_value = clock_time(); //Initiate at own clock time value
-      num_coordinators++;
-      printf("Received the address of a coordinator, total: %d\n", num_coordinators);
-  }
-  if(msg->type == GIVE_CLOCK_TYPE){
-    printf("To handle");
-     for (uint8_t i = 0; i < num_coordinators; i++) {
-        if (linkaddr_cmp(src, &coordinators[i].addr)) {
-          coordinators[i].clock_value = msg->data;
-          printf("Received clock value %lu from coordinator %d.%d\n", (unsigned long)msg->data, src->u8[0], src->u8[1]);
-          break;
-        }
+      // Check if the message is received during the assigned time slot
+      // for (uint8_t i = 0; i < num_coordinators; i++) {
+      //   if (linkaddr_cmp(src, &coordinators[i].addr)) {
+      //     clock_time_t current_time = clock_time();
+      //     if (current_time < coordinators[i].time_slot_start || current_time >= coordinators[i].time_slot_start + TIME_SLOT_DURATION) {
+      //       printf("Message received outside the assigned time slot from coordinator %d.%d, ignoring...\n", src->u8[0], src->u8[1]);
+      //       return;
+      //     }
+      //     break;
+      //   }
+      // }
+      printf("RECEIVE A MESSAGE");
+      // Process the message based on its type
+      if(msg->type == HELLO_TYPE){
+        linkaddr_copy(&coordinators[num_coordinators].addr, src);
+          coordinators[num_coordinators].time_slot_start = TIME_SLOT_DURATION * num_coordinators;
+          coordinators[num_coordinators].clock_value = clock_time(); //Initiate at own clock time value
+          num_coordinators++;
+          printf("Received the address of a coordinator, total: %d\n", num_coordinators);
       }
+      if(msg->type == GIVE_CLOCK_TYPE){
+        printf("To handle");
+        for (uint8_t i = 0; i < num_coordinators; i++) {
+            if (linkaddr_cmp(src, &coordinators[i].addr)) {
+              coordinators[i].clock_value = msg->data;
+              printf("Received clock value %lu from coordinator %d.%d\n", (unsigned long)msg->data, src->u8[0], src->u8[1]);
+              break;
+            }
+          }
 
+      }
+  }
+
+  if (len == sizeof(struct message_array_data)){
+      printf("received a struct message_array_data \n");
+      // Cast the message payload to a struct message pointer
+      struct message_array_data *msg = (struct message_array_data*) data;
+
+      if (msg->type == TRANSFER_DATA){
+        printf("Border router received data from coordinator\n");
+        for (int i = 0; nb_total_sensors < (msg->nb_sensors + nb_total_sensors); i++)
+        {
+          sensors[nb_total_sensors] = msg->sensors[i];
+          nb_total_sensors++;
+        }
+        
+        printf("Border router treated received data\n");
+      }
   }
 
 }
@@ -195,6 +215,8 @@ while (1) {
     send_ask_clock_to_all_coordinators();
     etimer_reset(&clock_request_timer);
   }
+  create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI),3,100,0); //simulate giving time slot to coordinator
 }
 PROCESS_END();
 }
+
