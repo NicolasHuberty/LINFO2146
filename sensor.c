@@ -12,7 +12,6 @@
 
 #include "utils.h"
 
-
 #define LOG_MODULE "Sensor"
 #define LOG_LEVEL LOG_LEVEL_INFO
 #define MAX_PARENTS 10
@@ -39,8 +38,6 @@ AUTOSTART_PROCESSES(&sensor_node_process);
 void choose_parent();
 void send_message(int rssi, int nodeType, int type, clock_time_t clock_value);
 
-
-
 /*---------------------------------------------------------------------------*/
 void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const linkaddr_t *dest) {
   
@@ -52,24 +49,13 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 
   struct message *msg = (struct message*) data;
   
-  /*
-    printf("received %d from ", msg->data);
-  if(msg->nodeType == 0) {
-    printf("SENSOR ");
-  } else {
-    printf("COORDINATOR ");
-  } 
-  printf("node %d.%d with RSSI %d \n", src->u8[0], src->u8[1], msg->rssi);
-  */
-
-  
   // Check if the message is from the parent node
   if(linkaddr_cmp(&parent_node, src)) {
     // Update the time the last message was received from the parent node
     last_parent_message_time = clock_time();
 
     // Print a message indicating that the parent node is still alive
-    printf("Received message from parent node %d.%d\n", src->u8[0], src->u8[1]);
+    printf("Received message from parent node %d.%d with RSSI %d\n", src->u8[0], src->u8[1], msg->rssi);
   }
 
   // Check if the parent node has sent a message within the last 30 seconds
@@ -95,21 +81,23 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
     if(parent_index == -1){
       parent_list[num_parents] = *src;
       parents[num_parents].addr = *src; 
-      parents[num_parents].rssi = packetbuf_attr(PACKETBUF_ATTR_RSSI);
+      parents[num_parents].rssi = msg->rssi;
       num_parents += 1;
-      printf("The coordinator node: %d.%d has been added to the list \n", src->u8[0], src->u8[1]);
+      printf("Coordinator node: %d.%d has been added to the list \n", src->u8[0], src->u8[1]);
       printf("Number of parents: %d\n", num_parents);
 
     } else {
       // Update the RSSI value for an existing parent
-      parents[parent_index].rssi = packetbuf_attr(PACKETBUF_ATTR_RSSI);
+      parents[parent_index].rssi = msg->rssi;
     }
   }
-  if(msg->type == ALLOW_SEND_DATA && msg->nodeType == 1){
-
+  
+  //Used for the border router
+  if(msg->type == ALLOW_SEND_DATA && msg->nodeType == 2){
       /* Generate and send random data */
       int random_value = (random_rand() % 100) + 50;
       create_unicast_message_data(*src, DATA, random_value);
+      printf("Sent %d to parent\n", random_value);
     } 
 }
 
@@ -125,7 +113,6 @@ void choose_parent() {
     }
   }
 
-    printf("Number of parents: %d\n", num_parents);
   if(best_rssi_index != -1 && num_parents > 0) {
     // Set selected parent
     parent_node = parents[best_rssi_index].addr;
@@ -135,25 +122,19 @@ void choose_parent() {
   } else {
     parent_node.u8[0] = 0;
     parent_node.u8[1] = 0;
-  	printf("No candidats left, parent is back to default: %d.%d\n", parent_node.u8[0], parent_node.u8[1]);
+  	printf("No candidats, parent addr is: %d.%d\n", parent_node.u8[0], parent_node.u8[1]);
   }
 }
 
-//Add a way to check if the parent is still alive
-
 void send_message(int rssi, int nodeType, int type, clock_time_t clock_value){
- 
   choose_parent();
   
-   // Broadcast: Send message to all nodes in the network
-  if(parent_node.u8[0] == 0) {
-    create_multicast_message(rssi, nodeType, 1, clock_value);  
-    printf("No parent yet, sensor broadcasted messages to all nodes\n");
-  }
-  // Unicast: Send message only to the selected parent
-  else {
-    create_unicast_message(parent_node, rssi, nodeType, 1, clock_value);
-    printf("Sensor is sending unicast messages to its Parent with addr: %d.%d\n", parent_node.u8[0], parent_node.u8[1]);
+  // Broadcast: Send message to all nodes in the network
+  create_multicast_message(rssi, nodeType, HELLO_TYPE, clock_value);
+  if(parent_node.u8[0] != 0) {
+    // Unicast: Send message to the parent
+    create_unicast_message(parent_node, rssi, nodeType, HELLO_TYPE, clock_value);
+    printf("Sensor is sending to its parent with addr: %d.%d\n", parent_node.u8[0], parent_node.u8[1]);
   } 
 }
 
@@ -165,12 +146,8 @@ PROCESS_THREAD(sensor_node_process, ev, data) {
 
   nullnet_set_input_callback(input_callback);
 
-   while(1) {
-     /* Generate random sensor data */
-    int random_value = (random_rand() % 100) + 50;
-      
-    /* Send random generated data (unicast or multicast) */
-    send_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), 0, random_value, 00);
+   while(1) {      
+    send_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), 0, HELLO_TYPE, 00);
     
     /* Wait for the next transmission interval */
     etimer_set(&periodic_timer, SEND_INTERVAL);        
