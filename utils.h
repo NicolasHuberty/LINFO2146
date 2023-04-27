@@ -24,6 +24,10 @@
 #define RESPONSE_HELLO_MSG 8 // node respond to a hello_msg
 #define TRANSFER_DATA 9 // coordinator transfering data to border router
 
+#define BORDER_ROUTER 100 //2
+#define COORDINATOR 101 //1
+#define SENSOR 102 //0
+
 struct message {
   int rssi;
   int nodeType;

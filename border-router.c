@@ -60,7 +60,7 @@ void remove_non_responsive_coordinators() {
 void send_ask_clock_to_all_coordinators() {
   printf("In send ask clock to all\n");
     for (uint8_t i = 0; i < num_coordinators; i++) {
-      create_unicast_message(coordinators[i].addr, packetbuf_attr(PACKETBUF_ATTR_RSSI), 3, ASK_CLOCK_TYPE, 00);
+      create_unicast_message(coordinators[i].addr, packetbuf_attr(PACKETBUF_ATTR_RSSI), BORDER_ROUTER, ASK_CLOCK_TYPE, 00);
     }
 }
 
@@ -75,11 +75,11 @@ void send_data_request();
 /*---------------------------------------------------------------------------*/
 
 void send_clock_request() {
-  create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), 3,ASK_CLOCK_TYPE, 0);
+  create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), BORDER_ROUTER, ASK_CLOCK_TYPE, 0);
   etimer_set(&alive_timer,ALIVE_INTERVAL);
 }
 void set_clock_time(){
-  create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI),3,SET_CLOCK_TYPE,clock_time());
+  create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), BORDER_ROUTER, SET_CLOCK_TYPE, clock_time());
 }
 /*---------------------------------------------------------------------------*/
 void input_callback(const void *data, uint16_t len,
@@ -125,9 +125,9 @@ void input_callback(const void *data, uint16_t len,
           }
 
       }
-  }
+    }
 
-  if (len == sizeof(struct message_array_data)){
+    else{
       printf("received a struct message_array_data \n");
       // Cast the message payload to a struct message pointer
       struct message_array_data *msg = (struct message_array_data*) data;
@@ -148,7 +148,7 @@ void input_callback(const void *data, uint16_t len,
 
 void handle_clock_request(struct message *clock_req_msg) {
   // Send the current clock value as a response
-  create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), 3,3, clock_time());
+  create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), BORDER_ROUTER,3, clock_time());
 }
 
 
@@ -167,7 +167,7 @@ void berkeley_algorithm() {
   // Send adjusted clock value to coordinators
   for (uint8_t i = 0; i < num_coordinators; i++) {
     printf("Try to send to %d.%d\n", coordinators[i].addr.u8[0], coordinators[i].addr.u8[1]);   
-    create_unicast_message(coordinators[i].addr,packetbuf_attr(PACKETBUF_ATTR_RSSI),3,4,average);
+    create_unicast_message(coordinators[i].addr,packetbuf_attr(PACKETBUF_ATTR_RSSI), BORDER_ROUTER,4,average);
     // struct message *msg;
     // msg = (struct message*) malloc(sizeof(struct message));
 
@@ -195,7 +195,7 @@ PROCESS_THREAD(border_router_node_process, ev, data)
 PROCESS_BEGIN();
 
 nullnet_set_input_callback(input_callback);
-create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), 3,1, 00);
+create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), BORDER_ROUTER, 1, 00);
 etimer_set(&periodic_timer, SEND_INTERVAL);
 etimer_set(&clock_request_timer, CLOCK_REQUEST_INTERVAL);
 etimer_set(&alive_timer,CLOCK_REQUEST_INTERVAL+CLOCK_SECOND);
@@ -215,7 +215,7 @@ while (1) {
     send_ask_clock_to_all_coordinators();
     etimer_reset(&clock_request_timer);
   }
-  create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI),3,100,0); //simulate giving time slot to coordinator
+  create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), BORDER_ROUTER,100,0); //simulate giving time slot to coordinator
 }
 PROCESS_END();
 }

@@ -55,19 +55,19 @@ void input_callback(const void *data, uint16_t len,
 
 
       /*Get the addr of the border rooter*/
-      if(msg->type == HELLO_TYPE && msg->nodeType == 3){
+      if(msg->type == HELLO_TYPE && msg->nodeType == BORDER_ROUTER){
         linkaddr_copy(&border_router, src);
         printf("Have receive the address of the border router\n");
       }
 
       /*Send answer to Hello message*/
-      if(msg->type == HELLO_TYPE && msg->nodeType == 0) {
+      if(msg->type == HELLO_TYPE && msg->nodeType == SENSOR) {
         printf("Hello msg received with type: %d\n",msg->nodeType);
-        create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), 2, RESPONSE_HELLO_MSG, 0);
+        create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, RESPONSE_HELLO_MSG, 0);
       }
 
       /*Add sensor to list of children*/
-      if (msg->type == CHOSEN_PARENT && msg->nodeType == 0 && is_addr_present(*src) == 0){
+      if (msg->type == CHOSEN_PARENT && msg->nodeType == SENSOR && is_addr_present(*src) == 0){
         printf("Sensor choose coordinator as parent\n");
         struct sensor_info new_sensor;
         new_sensor.addr = *src;
@@ -80,11 +80,11 @@ void input_callback(const void *data, uint16_t len,
       /*Send clock*/
       if(msg->type == ASK_CLOCK_TYPE){
         printf("Try to send clock_time from coordinator\n");
-        create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI),2,GIVE_CLOCK_TYPE,clock_time());
+        create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, GIVE_CLOCK_TYPE,clock_time());
       }
 
       /*Simulate a slot time assignement*/
-      if(msg->type == 100 && msg->nodeType == 3){ //msg type should be the type who say the border rooter gives a time slot to the coordinator
+      if(msg->type == 100 && msg->nodeType == BORDER_ROUTER){ //msg type should be the type who say the border rooter gives a time slot to the coordinator
         printf("Authorization to get data from the sensors nodes\n");
         rcv_time_slot();
       }
@@ -97,8 +97,10 @@ void input_callback(const void *data, uint16_t len,
     struct message_data *msg = (struct message_data*) data;
 
     if(msg->type == DATA){
-      printf("I received data from a sensor\n");
+      
       sensors[nb_sensors].data = msg->data;
+      printf("Coordinator received %d from sensor \n", sensors[nb_sensors].data);
+      printf("There is currently %d sensors\n", nb_sensors);
     }
   }
 
@@ -114,12 +116,13 @@ void rcv_time_slot(){
     // Access the current sensor_info element using the index i
     if (!linkaddr_cmp(&sensors[i].addr, &linkaddr_null)){ //if the addr of the i element is not null
       struct sensor_info current_sensor = sensors[i];
-      create_unicast_message(current_sensor.addr, packetbuf_attr(PACKETBUF_ATTR_RSSI),1, ALLOW_SEND_DATA, 0); 
+      create_unicast_message(current_sensor.addr, packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, ALLOW_SEND_DATA, 0); 
     }
   }
+  printf("Finished recolting data from all the sensors \n");
   if (nb_sensors > 0){
     create_unicast_transfer_data(border_router, TRANSFER_DATA, sensors, nb_sensors);
-    printf("Sending data to the border_router\n");
+    printf("Sending data to the border_router with addr %d %d\n", border_router.u8[0], border_router.u8[1]);
   }
 
 }
@@ -129,7 +132,7 @@ PROCESS_THREAD(coordinator_node_process, ev, data)
   static struct etimer periodic_timer;
 
   PROCESS_BEGIN();
-  create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), 1, HELLO_TYPE, 0); //send hello message to find the border rooter
+  create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, HELLO_TYPE, 0); //send hello message to find the border rooter
   
   nullnet_set_input_callback(input_callback);
   etimer_set(&periodic_timer, SEND_INTERVAL);

@@ -138,7 +138,7 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
   }
   
   //Used for the border router
-  if(msg->type == ALLOW_SEND_DATA && msg->nodeType == 2){
+  if(msg->type == ALLOW_SEND_DATA && msg->nodeType == COORDINATOR){
       /* Generate and send random data */
       int random_value = (random_rand() % 100) + 50;
       create_unicast_message_data(*src, DATA, random_value);
@@ -174,7 +174,7 @@ if(num_coords > 0 && best_rssi_coord != -100){
     // Set selected coord as coord
     coord_node = coords[best_rssi_index_coord].addr;
     printf("Selected parent is coord with addr: %d.%d\n", coord_node.u8[0], coord_node.u8[1]);
-    create_unicast_message(coord_node, packetbuf_attr(PACKETBUF_ATTR_RSSI), 0, CHOSEN_PARENT, 0);
+    create_unicast_message(coord_node, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, CHOSEN_PARENT, 0);
     
   } else {
     coord_node.u8[0] = 0;
@@ -186,7 +186,7 @@ if(num_coords > 0 && best_rssi_coord != -100){
     // Set selected parent as sensor
     sensor_node = sensors[best_rssi_index_sensor].addr;
     printf("Selected parent is sensor with addr: %d.%d\n", sensor_node.u8[0], sensor_node.u8[1]);
-    create_unicast_message(sensor_node, packetbuf_attr(PACKETBUF_ATTR_RSSI), 0, CHOSEN_PARENT, 0);
+    create_unicast_message(sensor_node, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, CHOSEN_PARENT, 0);
     
   } else {
     sensor_node.u8[0] = 0;
@@ -207,7 +207,7 @@ void send_message(int rssi, int nodeType, int type, clock_time_t clock_value){
     printf("Sensor is sending to its COORD parent with addr: %d.%d\n", coord_node.u8[0], coord_node.u8[1]);
   } else if(sensor_node.u8[0] != 0) {
     // Unicast: Send message to the parent
-    create_unicast_message(sensor_node, rssi, 0, HELLO_TYPE, clock_value);
+    create_unicast_message(sensor_node, rssi, nodeType, HELLO_TYPE, clock_value);
     printf("Sensor is sending to its SENSOR parent with addr: %d.%d\n", sensor_node.u8[0], sensor_node.u8[1]);
   } 
 }
@@ -221,7 +221,7 @@ PROCESS_THREAD(sensor_node_process, ev, data) {
   nullnet_set_input_callback(input_callback);
 
    while(1) {      
-    send_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), 0, HELLO_TYPE, 00);
+    send_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, 00);
     
     /* Wait for the next transmission interval */
     etimer_set(&periodic_timer, SEND_INTERVAL);        
