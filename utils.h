@@ -55,8 +55,22 @@ struct message_array_data {
   int nb_sensors;
 };
 
+struct coordinator_info {
+  linkaddr_t addr;
+  clock_time_t clock_value;
+  clock_time_t time_slot_start;
+  int nb_sensors;
+  struct sensor_info sensors[256];
+};
+struct message_clock_update{
+  clock_time_t clock_value;
+  clock_time_t time_slot_start;
+  int duration;
+};
 void create_multicast_message(int rssi, int eachNodeType,int type,clock_time_t clock_value);
 void create_unicast_message(linkaddr_t addr,int rssi, int eachNodeType,int type,clock_time_t clock_value);
 void create_unicast_message_data(linkaddr_t addr, int type, int data); //usually for sensors sending their data to coordinator
 void create_unicast_transfer_data(linkaddr_t border_router_addr, int type, struct sensor_info sensors[256], int nb_sensors); // usually coordinator transfering data of the sensors to the border_router
+void create_multicast_transfer_data(int type,int nb_sensors);
+void create_unicast_clock_update(linkaddr_t coordinator, clock_time_t clock_value,clock_time_t time_slot_start,int duration);
 #endif // UTILS_H_
