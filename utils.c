@@ -108,7 +108,7 @@ void create_multicast_transfer_data(int type,int nb_sensors){
   free(msg);
 
 }
-void create_unicast_clock_update(linkaddr_t coordinator, clock_time_t clock_value,clock_time_t time_slot_start,int duration){
+void create_unicast_clock_update(linkaddr_t coordinator, clock_time_t clock_value,clock_time_t time_slot_start,int window,int duration){
     // Allocate memory for the message
     struct message_clock_update *msg;
     msg = (struct message_clock_update *)malloc(sizeof(struct message_clock_update));
@@ -117,7 +117,7 @@ void create_unicast_clock_update(linkaddr_t coordinator, clock_time_t clock_valu
     msg->clock_value = clock_value;
     msg->time_slot_start = time_slot_start;
     msg->duration = duration;
-
+    msg->window = window;
     // Set nullnet buffer and length
     nullnet_buf = (uint8_t *)msg;
     nullnet_len = sizeof(struct message_clock_update);

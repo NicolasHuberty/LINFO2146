@@ -21,10 +21,10 @@ static struct etimer alive_timer;
 static clock_time_t clock_offset = 0;
 clock_time_t clock_request_send_time;
 
-struct coordinator_info coordinators[256];
+struct coordinator_info coordinators[2];
 uint8_t num_coordinators = 0;
 
-struct sensor_info sensors_info[1024];
+struct sensor_info sensors_info[10];
 int nb_total_sensors = 0;
 
 void berkeley_algorithm();
@@ -116,7 +116,7 @@ void berkeley_algorithm() {
   for (uint8_t i = 0; i < num_coordinators; i++) {
     coordinators[i].clock_value = coordinators[i].clock_value + clock_offset;
     coordinators[i].time_slot_start = coordinators[i].clock_value + ((WINDOW / num_coordinators) * i);
-    create_unicast_clock_update(coordinators[i].addr, coordinators[i].clock_value,coordinators[i].time_slot_start, WINDOW / num_coordinators);
+    create_unicast_clock_update(coordinators[i].addr, coordinators[i].clock_value,coordinators[i].time_slot_start,WINDOW, WINDOW / num_coordinators);
   }
 
   etimer_set(&alive_timer, CLOCK_REQUEST_INTERVAL + CLOCK_SECOND);
