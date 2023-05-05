@@ -67,14 +67,15 @@ void input_callback(const void *data, uint16_t len,
       struct message *msg = (struct message*) data;
 
       if(msg->type == HELLO_TYPE && msg->nodeType == COORDINATOR){ //HELLO message from coordinator
-          linkaddr_copy(&coordinators[num_coordinators].addr, src);
+          printf("Received the address of a coordinator, total: %d\n", num_coordinators);
+      
           for(int i = 0; i < num_coordinators;i++){
             if(linkaddr_cmp(src,&coordinators[i].addr)){return;}
           }
-          //coordinators[num_coordinators].time_slot_start = TIME_SLOT_DURATION * num_coordinators;
-          //coordinators[num_coordinators].clock_value = clock_time(); //Initiate at own clock time value
+          printf("Add successfully a coordinator\n");
+          linkaddr_copy(&coordinators[num_coordinators].addr, src);
           num_coordinators++;
-          printf("Received the address of a coordinator, total: %d\n", num_coordinators);
+          
       }
 
       if(msg->type == GIVE_CLOCK_TYPE){
@@ -119,6 +120,7 @@ void berkeley_algorithm() {
   for (uint8_t i = 0; i < num_coordinators; i++) {
     coordinators[i].clock_value =  clock_offset;
     coordinators[i].time_slot_start = clock_offset + ((WINDOW / num_coordinators) * i);
+    printf("Send an update clock to coordinator %d\n",(int)i);
     create_unicast_clock_update(coordinators[i].addr, coordinators[i].clock_value,coordinators[i].time_slot_start,WINDOW, WINDOW / num_coordinators);
   }
 

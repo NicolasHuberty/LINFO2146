@@ -120,14 +120,18 @@ void input_callback(const void *data, uint16_t len,
   }
   if (len == sizeof(struct message_clock_update))
   {
-    printf("--------------------Receive an update message-----------------------------\n");
+    printf("--------------------Receive an update message----------------------------- len of clock: %d and message: %d\n",(int)sizeof(struct message_clock_update),(int)sizeof(struct message));
     struct message_clock_update *msg = (struct message_clock_update *)data;
-    set_custom_clock_offset(msg->clock_value);
-
-    time_slot_start = clock_time() + msg->time_slot_start;
-    duration = msg->duration;
-    window = msg->window;
-    printf("Actual clockTime = %d, New custom clock time = %d, new time_slot_start = %d,new duration =%d, new window = %d\n",(int)clock_time(), (int)custom_clock_time(), (int)time_slot_start, duration, window);
+    if(msg->type == 9){
+      set_custom_clock_offset(msg->clock_value);
+      time_slot_start = clock_time() + msg->time_slot_start;
+      duration = msg->duration;
+      window = msg->window;
+      printf("Actual clockTime = %d, New custom clock time = %d, new time_slot_start = %d,new duration =%d, new window = %d\n",(int)clock_time(), (int)custom_clock_time(), (int)time_slot_start, duration, window);
+    }else{
+      printf("Drop message\n");
+    }
+  
   }
 }
 
@@ -170,13 +174,14 @@ PROCESS_THREAD(coordinator_node_process, ev, data)
   {
     PROCESS_WAIT_EVENT();
     //PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-    printf("My custom clock time = %d, my time_slot_start = %d, the duration of the time slot = %d\n", (int)custom_clock_time(), (int)time_slot_start, duration);
+    //printf("My custom clock time = %d, my time_slot_start = %d, the duration of the time slot = %d\n", (int)custom_clock_time(), (int)time_slot_start, duration);
     while (custom_clock_time() > time_slot_start && custom_clock_time() < time_slot_start + duration)
     {
       printf("Entering in my assigned time slot\n");
+      time_slot_start += window;
+      PROCESS_WAIT_EVENT();
       // PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
       // send_data();
-      // time_slot_start += window;
     }
 
     // Send the message
