@@ -165,10 +165,11 @@ PROCESS_THREAD(coordinator_node_process, ev, data)
   create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, HELLO_TYPE, 0); // send hello message to find the border rooter
 
   nullnet_set_input_callback(input_callback);
-  etimer_set(&periodic_timer, SEND_INTERVAL);
+  etimer_set(&periodic_timer, 1);
   while (1)
   {
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+    PROCESS_WAIT_EVENT();
+    //PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
     printf("My custom clock time = %d, my time_slot_start = %d, the duration of the time slot = %d\n", (int)custom_clock_time(), (int)time_slot_start, duration);
     while (custom_clock_time() > time_slot_start && custom_clock_time() < time_slot_start + duration)
     {

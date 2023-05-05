@@ -68,6 +68,9 @@ void input_callback(const void *data, uint16_t len,
 
       if(msg->type == HELLO_TYPE && msg->nodeType == COORDINATOR){ //HELLO message from coordinator
           linkaddr_copy(&coordinators[num_coordinators].addr, src);
+          for(int i = 0; i < num_coordinators;i++){
+            if(linkaddr_cmp(src,&coordinators[i].addr)){return;}
+          }
           //coordinators[num_coordinators].time_slot_start = TIME_SLOT_DURATION * num_coordinators;
           //coordinators[num_coordinators].clock_value = clock_time(); //Initiate at own clock time value
           num_coordinators++;
