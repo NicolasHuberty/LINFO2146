@@ -114,8 +114,8 @@ void berkeley_algorithm() {
 
   // Send adjusted clock value to coordinators
   for (uint8_t i = 0; i < num_coordinators; i++) {
-    coordinators[i].clock_value = coordinators[i].clock_value + clock_offset;
-    coordinators[i].time_slot_start = coordinators[i].clock_value + ((WINDOW / num_coordinators) * i);
+    coordinators[i].clock_value =  clock_offset;
+    coordinators[i].time_slot_start = clock_offset + ((WINDOW / num_coordinators) * i);
     create_unicast_clock_update(coordinators[i].addr, coordinators[i].clock_value,coordinators[i].time_slot_start,WINDOW, WINDOW / num_coordinators);
   }
 
