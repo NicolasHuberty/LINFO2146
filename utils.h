@@ -32,7 +32,7 @@ struct message {
   int rssi;
   int nodeType;
   int type;
-  int data;
+  clock_time_t data;
 };
 
 struct message_data {

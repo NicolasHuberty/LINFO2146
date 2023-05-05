@@ -20,7 +20,9 @@ clock_time_t custom_clock_time() {
 }
 
 linkaddr_t border_router;
-
+clock_time_t time_slot_start;
+int duration;
+int window;
 struct sensor_info sensors_info[256];
 int nb_sensors = 0;
 /*---------------------------------------------------------------------------*/
@@ -46,27 +48,18 @@ void input_callback(const void *data, uint16_t len,
 
   // Check if the message length is correct
   if(len != sizeof(struct message) && len != sizeof(struct message_data) && len != sizeof(struct message_clock_update  )) {
-    printf("Invalid message length: %d (expected %d) sizeof clock_message: %ld\n", (int)len,(int) sizeof(struct message),sizeof(struct message_clock_update));
+    printf("Invalid message length: %d (expected %d) sizeof clock_message: %d\n", (int)len,(int) sizeof(struct message), (int) sizeof(struct message_clock_update));
     return;
   }
   if (len == sizeof(struct message)){
       // Cast the message payload to a struct message pointer
       struct message *msg = (struct message*) data;
 
-      // Print the message fields
-      /*
-      printf("Received message from node %d.%d:\n", src->u8[0], src->u8[1]);
-      printf("RSSI: %d\n", msg->rssi);
-      printf("eachNodeType: %d\n", msg->nodeType);
-      printf("Type: %d\n",msg->type);
-      printf("data: %d\n", msg->data);
-      */
-
-
       /*Get the addr of the border rooter*/
       if(msg->type == HELLO_TYPE && msg->nodeType == BORDER_ROUTER){
         linkaddr_copy(&border_router, src);
         printf("----------------------------Have receive the address of the border router addr: %d%d\n",src->u8[0],src->u8[1]);
+        create_unicast_message(border_router, packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, HELLO_TYPE, clock_time());
       }
 
       /*Send answer to Hello message*/
@@ -116,6 +109,11 @@ void input_callback(const void *data, uint16_t len,
     printf("--------------------Receive an update message-----------------------------\n"); 
     struct message_clock_update *msg = (struct message_clock_update*)data;
     set_custom_clock_offset(clock_time() + msg->clock_value);
+
+    time_slot_start = msg->time_slot_start;
+    duration = msg->duration;
+    window = msg->window;
+    printf("Received clock_value = %d, New custom clock time = %d, new time_slot_start = %d,new duration =%d, new window = %d\n", (int)msg->clock_value, (int) custom_clock_time(), (int) time_slot_start,duration, window);
   }
 
 }
@@ -154,13 +152,15 @@ PROCESS_THREAD(coordinator_node_process, ev, data)
   nullnet_set_input_callback(input_callback);
   etimer_set(&periodic_timer, SEND_INTERVAL);
   while(1) {
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+    printf("My custom clock time = %d, my time_slot_start = %d, the duration of the time slot = %d\n", (int) custom_clock_time(), (int) time_slot_start, duration);
     while(custom_clock_time() > time_slot_start && custom_clock_time() < time_slot_start + duration){
-      send_data();
-      time_slot_start += window;
+      printf("Entering in my assigned time slot\n");
+     // PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+      //send_data();
+      //time_slot_start += window;
     }
-    while(custom_clock_time() < etimer_expiration_time(&periodic_timer)){
-      PROCESS_WAIT_EVENT();
-    }
+    
     // Send the message
     etimer_reset(&periodic_timer);
   }

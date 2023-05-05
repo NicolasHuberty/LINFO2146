@@ -66,7 +66,7 @@ void input_callback(const void *data, uint16_t len,
   if (len == sizeof(struct message)){
       struct message *msg = (struct message*) data;
 
-      if(msg->type == HELLO_TYPE && msg->nodeType == 101){ //HELLO message from coordinator
+      if(msg->type == HELLO_TYPE && msg->nodeType == COORDINATOR){ //HELLO message from coordinator
           linkaddr_copy(&coordinators[num_coordinators].addr, src);
           //coordinators[num_coordinators].time_slot_start = TIME_SLOT_DURATION * num_coordinators;
           //coordinators[num_coordinators].clock_value = clock_time(); //Initiate at own clock time value
@@ -79,7 +79,7 @@ void input_callback(const void *data, uint16_t len,
           if (linkaddr_cmp(src, &coordinators[i].addr)) {
             clock_time_t time_diff = clock_time() - clock_request_send_time;
             coordinators[i].clock_value = msg->data + time_diff;
-            printf("Received clock value %d adjusted by %ld ms, border router time: %ld from coordinator %d :  %d.%d\n", msg->data, time_diff, clock_time(), i, src->u8[0], src->u8[1]);
+            printf("Received clock value %d adjusted by %d ms, border router time: %d from coordinator %d :  %d.%d\n", (int) msg->data, (int) time_diff, (int) clock_time(), i, src->u8[0], src->u8[1]);
             break;
           }
         }
@@ -127,7 +127,7 @@ void berkeley_algorithm() {
 PROCESS_THREAD(border_router_node_process, ev, data){
 PROCESS_BEGIN();
 nullnet_set_input_callback(input_callback);
-create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), BORDER_ROUTER, 1, 00);
+create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), BORDER_ROUTER, HELLO_TYPE, 00);
 etimer_set(&periodic_timer, SEND_INTERVAL);
 etimer_set(&clock_request_timer, CLOCK_REQUEST_INTERVAL);
 etimer_set(&alive_timer,CLOCK_REQUEST_INTERVAL+CLOCK_SECOND);
@@ -147,4 +147,3 @@ while (1) {
 }
 PROCESS_END();
 }
-
