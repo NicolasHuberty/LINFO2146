@@ -11,6 +11,7 @@
 /* Configuration */
 #define SEND_INTERVAL (8 * CLOCK_SECOND)
 static clock_time_t custom_clock_offset = 0;
+static struct etimer sensors_slot;
 
 void set_custom_clock_offset(clock_time_t offset)
 {
@@ -29,6 +30,7 @@ int window;
 int num_total_coordinators = 0;
 struct sensor_info sensors_info[256];
 int nb_sensors = 0;
+int current_sensor = 0;
 /*---------------------------------------------------------------------------*/
 PROCESS(coordinator_node_process, "Coordinator");
 AUTOSTART_PROCESSES(&coordinator_node_process);
@@ -128,6 +130,10 @@ void input_callback(const void *data, uint16_t len,
     duration = msg->duration;
     window = msg->window;
     time_slot_start = msg->clock_value + (num_coordinator* (window/num_total_coordinators));
+    printf("Nb sensors: %d",nb_sensors);
+    if(nb_sensors > 0){
+        etimer_set(&sensors_slot,window/nb_sensors);
+    }
     printf("Actual coord %d: %d :clockTime = %d,  New custom clock time = %d, new time_slot_start = %d,new duration =%d, new window = %d\n",(int)num_coordinator, (int)clock_time(), (int)(clock_time() - msg->clock_value), (int)custom_clock_time(), (int)time_slot_start, (int)duration,(int) window);
   }
 }
@@ -167,16 +173,26 @@ PROCESS_THREAD(coordinator_node_process, ev, data)
 
   nullnet_set_input_callback(input_callback);
   etimer_set(&periodic_timer, 1);
+  etimer_set(&sensors_slot,10000000);
   while (1)
   {
     PROCESS_WAIT_EVENT();
-    if(custom_clock_time() > time_slot_start && custom_clock_time() < time_slot_start + duration)
+    if(custom_clock_time() > time_slot_start && custom_clock_time() < time_slot_start + duration && nb_sensors > 0)
     {
-      //1000ms
-      //sensors_time_slot = [[],[]]
-      rcv_time_slot();
-      printf("Entering in my assigned time slot\n");
-      time_slot_start += window;
+      if(etimer_expired(&sensors_slot) || current_sensor == 0){ //Sensors_slot = 250ms
+        current_sensor+=1;
+        printf("sensors info %d addr: %d%d%d",current_sensor,(int)sensors_info[current_sensor].addr.u8[2],(int)sensors_info[current_sensor].addr.u8[1],(int)sensors_info[current_sensor].addr.u8[0]);
+        create_unicast_message(sensors_info[current_sensor].addr, packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, ALLOW_SEND_DATA, 0);
+        etimer_reset(&sensors_slot);
+        if(current_sensor == nb_sensors){
+          printf("In the last sensor detector\n");
+          printf("Etimer expired reset time_slot\n");
+          current_sensor = -1;
+          time_slot_start += window;
+          etimer_set(&sensors_slot,time_slot_start);
+        }
+      }
+    printf("Entering in my assigned time slot\n");
     }
 
     // Send the message
