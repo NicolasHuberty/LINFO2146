@@ -74,6 +74,7 @@ void input_callback(const void *data, uint16_t len,
           }
           printf("Add successfully a coordinator\n");
           linkaddr_copy(&coordinators[num_coordinators].addr, src);
+          create_unicast_message(coordinators[num_coordinators].addr,packetbuf_attr(PACKETBUF_ATTR_RSSI),BORDER_ROUTER,HELLO_TYPE,(int)num_coordinators);
           num_coordinators++;
           
       }
@@ -83,7 +84,7 @@ void input_callback(const void *data, uint16_t len,
           if (linkaddr_cmp(src, &coordinators[i].addr)) {
             clock_time_t time_diff = clock_time() - clock_request_send_time;
             coordinators[i].clock_value = msg->data + time_diff;
-            printf("Received clock value %d adjusted by %d ms, border router time: %d from coordinator %d :  %d.%d\n", (int) msg->data, (int) time_diff, (int) clock_time(), i, src->u8[0], src->u8[1]);
+            printf("Received clock value %d ,border router time: %d from coordinator %d :  %d.%d\n", (int) coordinators[i].clock_value,(int) clock_time(), i, src->u8[0], src->u8[1]);
             break;
           }
         }
@@ -115,17 +116,18 @@ void berkeley_algorithm() {
   sum += clock_time(); // Add border router's own clock value
   clock_time_t average = sum / (num_coordinators + 1);
   clock_offset = average - clock_time(); //TODO Local changes
-
+  create_multicast_clock_update(average,WINDOW,num_coordinators);
   // Send adjusted clock value to coordinators
-  for (uint8_t i = 0; i < num_coordinators; i++) {
-    coordinators[i].clock_value =  clock_offset;
-    coordinators[i].time_slot_start = clock_offset + ((WINDOW / num_coordinators) * i);
-    printf("Send an update clock to coordinator %d\n",(int)i);
-    create_unicast_clock_update(coordinators[i].addr, coordinators[i].clock_value,coordinators[i].time_slot_start,WINDOW, WINDOW / num_coordinators);
-  }
+  //for (uint8_t i = 0; i < num_coordinators; i++) {
+  //  printf("Treat coordinator %d with clock_val received: %d\n",(int)i,(int)coordinators[i].clock_value);
+  //  coordinators[i].clock_value =  average-coordinators[i].clock_value;
+  //  coordinators[i].time_slot_start = clock_offset + ((WINDOW / num_coordinators) * i);
+  //  printf("Send an update clock to coordinator %d with coord clock_val: %d and slot start: %d and duration: %d\n",(int)i,(int)coordinators[i].clock_value,(int)coordinators[i].time_slot_start,(int)WINDOW/num_coordinators);
+  //  create_unicast_clock_update(coordinators[i].addr, coordinators[i].clock_value,coordinators[i].time_slot_start,WINDOW, WINDOW / num_coordinators);
+  //}
 
   etimer_set(&alive_timer, CLOCK_REQUEST_INTERVAL + CLOCK_SECOND);
-  printf("Time synchronized with Berkeley algorithm, new clock offset: %ld and new clock expected: %ld and was before: %ld coordinator time:%ld\n", clock_offset, clock_time() + clock_offset, clock_time(), coordinators[0].clock_value);
+  printf("Time synchronized with Berkeley algorithm, new clock offset: %ld and new clock expected: %ld and was before: %ld coordinator time:%ld\n", clock_offset, average, clock_time(), coordinators[0].clock_value);
 }
 
 

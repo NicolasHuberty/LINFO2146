@@ -118,12 +118,32 @@ void create_unicast_clock_update(linkaddr_t coordinator, clock_time_t clock_valu
     msg->time_slot_start = time_slot_start;
     msg->duration = duration;
     msg->window = window;
+    msg->type = 9;
     // Set nullnet buffer and length
     nullnet_buf = (uint8_t *)msg;
     nullnet_len = sizeof(struct message_clock_update);
 
     //sending
     NETSTACK_NETWORK.output(&coordinator);
+
+    free(msg);
+}
+void create_multicast_clock_update(clock_time_t clock_value,int window,int num_coordinators){
+    // Allocate memory for the message
+    struct message_clock_update *msg;
+    msg = (struct message_clock_update *)malloc(sizeof(struct message_clock_update));
+
+    //creation
+    msg->clock_value = clock_value;
+    msg->duration = num_coordinators;
+    msg->window = window;
+    msg->type = 9;
+    // Set nullnet buffer and length
+    nullnet_buf = (uint8_t *)msg;
+    nullnet_len = sizeof(struct message_clock_update);
+
+    //sending
+    NETSTACK_NETWORK.output(NULL);
 
     free(msg);
 }
