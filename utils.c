@@ -118,6 +118,7 @@ void create_unicast_clock_update(linkaddr_t coordinator, clock_time_t clock_valu
     msg->time_slot_start = time_slot_start;
     msg->duration = duration;
     msg->window = window;
+    msg->type = 9;
     // Set nullnet buffer and length
     nullnet_buf = (uint8_t *)msg;
     nullnet_len = sizeof(struct message_clock_update);

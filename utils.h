@@ -67,6 +67,7 @@ struct message_clock_update{
   clock_time_t time_slot_start; // 3600 -> 4600 -> 5600 -> 6600
   int window; //1000
   int duration; //200ms
+  int type;
 };
 void create_multicast_message(int rssi, int eachNodeType,int type,clock_time_t clock_value);
 void create_unicast_message(linkaddr_t addr,int rssi, int eachNodeType,int type,clock_time_t clock_value);

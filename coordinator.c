@@ -127,7 +127,7 @@ void input_callback(const void *data, uint16_t len,
       time_slot_start = clock_time() + msg->time_slot_start;
       duration = msg->duration;
       window = msg->window;
-      printf("Actual clockTime = %d, New custom clock time = %d, new time_slot_start = %d,new duration =%d, new window = %d\n",(int)clock_time(), (int)custom_clock_time(), (int)time_slot_start, duration, window);
+      printf("Actual clockTime = %d, New custom clock time = %d, new time_slot_start = %d,new duration = %d, new window = %d\n",(int)clock_time(), (int)custom_clock_time(), (int)time_slot_start, duration, window);
     }else{
       printf("Drop message\n");
     }
@@ -177,9 +177,8 @@ PROCESS_THREAD(coordinator_node_process, ev, data)
     //printf("My custom clock time = %d, my time_slot_start = %d, the duration of the time slot = %d\n", (int)custom_clock_time(), (int)time_slot_start, duration);
     while (custom_clock_time() > time_slot_start && custom_clock_time() < time_slot_start + duration)
     {
-      printf("Entering in my assigned time slot\n");
+      printf("In my assigned time slot \n");
       time_slot_start += window;
-      PROCESS_WAIT_EVENT();
       // PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
       // send_data();
     }
