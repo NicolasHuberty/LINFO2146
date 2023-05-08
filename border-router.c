@@ -12,7 +12,7 @@
 #define SEND_INTERVAL (1 * CLOCK_SECOND)
 #define ALIVE_INTERVAL (1*CLOCK_SECOND)
 #define TIME_SLOT_DURATION CLOCK_SECOND // Set the duration of the time slot
-#define WINDOW 10
+#define WINDOW 1000
 
 
 static struct etimer periodic_timer;

@@ -26,6 +26,7 @@ int num_coordinator = 0;
 clock_time_t time_slot_start;
 int duration;
 int window;
+int num_total_coordinators = 0;
 struct sensor_info sensors_info[256];
 int nb_sensors = 0;
 /*---------------------------------------------------------------------------*/
@@ -113,7 +114,6 @@ void input_callback(const void *data, uint16_t len,
 
     if (msg->type == DATA)
     {
-
       sensors_info[nb_sensors].data = msg->data;
       printf("Coordinator received %d from sensor \n", sensors_info[nb_sensors].data);
       printf("There is currently %d sensors\n", nb_sensors);
@@ -124,9 +124,10 @@ void input_callback(const void *data, uint16_t len,
     printf("--------------------Receive an update message----------------------------- len of clock: %d and message: %d\n", (int)sizeof(struct message_clock_update), (int)sizeof(struct message));
     struct message_clock_update *msg = (struct message_clock_update *)data;
     set_custom_clock_offset(clock_time() - msg->clock_value);
-    time_slot_start = custom_clock_time() + msg->time_slot_start;
+    num_total_coordinators = msg->duration;
     duration = msg->duration;
     window = msg->window;
+    time_slot_start = msg->clock_value + (num_coordinator* (window/num_total_coordinators));
     printf("Actual coord %d: %d :clockTime = %d,  New custom clock time = %d, new time_slot_start = %d,new duration =%d, new window = %d\n",(int)num_coordinator, (int)clock_time(), (int)(clock_time() - msg->clock_value), (int)custom_clock_time(), (int)time_slot_start, (int)duration,(int) window);
   }
 }
@@ -169,15 +170,13 @@ PROCESS_THREAD(coordinator_node_process, ev, data)
   while (1)
   {
     PROCESS_WAIT_EVENT();
-    // PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-    // printf("My custom clock time = %d, my time_slot_start = %d, the duration of the time slot = %d\n", (int)custom_clock_time(), (int)time_slot_start, duration);
-    while (custom_clock_time() > time_slot_start && custom_clock_time() < time_slot_start + duration)
+    if(custom_clock_time() > time_slot_start && custom_clock_time() < time_slot_start + duration)
     {
+      //1000ms
+      //sensors_time_slot = [[],[]]
+      rcv_time_slot();
       printf("Entering in my assigned time slot\n");
       time_slot_start += window;
-      PROCESS_WAIT_EVENT();
-      // PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-      // send_data();
     }
 
     // Send the message
