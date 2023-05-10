@@ -25,7 +25,6 @@ clock_time_t custom_clock_time()
 linkaddr_t border_router;
 int num_coordinator = 0;
 clock_time_t time_slot_start;
-int duration;
 int window;
 int num_total_coordinators = 0;
 struct sensor_info sensors_info[256];
@@ -116,9 +115,8 @@ void input_callback(const void *data, uint16_t len,
     printf("--------------------Receive an update message----------------------------- len of clock: %d and message: %d\n", (int)sizeof(struct message_clock_update), (int)sizeof(struct message));
     struct message_clock_update *msg = (struct message_clock_update *)data;
     set_custom_clock_offset(clock_time() - msg->clock_value);
-    num_total_coordinators = msg->duration;
+    num_total_coordinators = msg->num_coordinator;
     if(num_total_coordinators > 0){
-      duration = msg->duration;
       window = msg->window;
       time_slot_start = msg->clock_value + (num_coordinator* (window/num_total_coordinators));
       printf("Nb sensors: %d",nb_sensors);
@@ -126,7 +124,7 @@ void input_callback(const void *data, uint16_t len,
           printf("Set sensor slot at: %d\n",nb_sensors);
           etimer_set(&sensors_slot,(window/num_total_coordinators)/nb_sensors);
       }
-      printf("Actual coord %d: %d :clockTime = %d,  New custom clock time = %d, new time_slot_start = %d,new duration =%d, new window = %d\n",(int)num_coordinator, (int)clock_time(), (int)(clock_time() - msg->clock_value), (int)custom_clock_time(), (int)time_slot_start, (int)duration,(int) window);
+      printf("Actual coord %d: %d :clockTime = %d,  New custom clock time = %d, new time_slot_start = %d, new window = %d\n",(int)num_coordinator, (int)clock_time(), (int)(clock_time() - msg->clock_value), (int)custom_clock_time(), (int)time_slot_start, (int) window);
     }else{
       linkaddr_copy(&border_router, src);
       printf("----------------------------Have receive the address of the border router addr: %d%d\n", src->u8[0], src->u8[1]);

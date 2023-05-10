@@ -4,18 +4,16 @@
 #include "net/linkaddr.h"
 
 
-void create_multicast_message(int rssi, int eachNodeType,int type,clock_time_t clock_value) {
+void create_multicast_message(int rssi, int nodeType,int type,clock_time_t clock_value) {
   // Allocate memory for the message
   struct message *msg;
   msg = (struct message*) malloc(sizeof(struct message));
 
   //creation
   msg->rssi = rssi;
-  msg->nodeType = eachNodeType;
+  msg->nodeType = nodeType;
   msg->type = type;
   msg->data = clock_value;
-  //msg->clock_value = clock_value;
-  //msg->time_slot = time_slot; // Add time slot field
 
   // Set nullnet buffer and length
   nullnet_buf = (uint8_t *)msg;
@@ -26,18 +24,16 @@ void create_multicast_message(int rssi, int eachNodeType,int type,clock_time_t c
 
   free(msg);
 }
-void create_unicast_message(linkaddr_t addr,int rssi, int eachNodeType,int type,clock_time_t clock_value) {
+void create_unicast_message(linkaddr_t addr,int rssi, int nodeType,int type,clock_time_t clock_value) {
   // Allocate memory for the message
   struct message *msg;
   msg = (struct message*) malloc(sizeof(struct message));
 
   //creation
   msg->rssi = rssi;
-  msg->nodeType = eachNodeType;
+  msg->nodeType = nodeType;
   msg->type = type;
   msg->data = clock_value;
-  //msg->clock_value = clock_value;
-  //msg->time_slot = time_slot; // Add time slot field
 
   // Set nullnet buffer and length
   nullnet_buf = (uint8_t *)msg;
@@ -70,7 +66,7 @@ void create_unicast_message_data(linkaddr_t dest,linkaddr_t addr, int type, int 
 }
 
 
-void create_unicast_clock_update(linkaddr_t coordinator, clock_time_t clock_value,clock_time_t time_slot_start,int window,int duration){
+void create_unicast_clock_update(linkaddr_t coordinator, clock_time_t clock_value,clock_time_t time_slot_start,int window,int num_coordinator){
     // Allocate memory for the message
     struct message_clock_update *msg;
     msg = (struct message_clock_update *)malloc(sizeof(struct message_clock_update));
@@ -78,7 +74,7 @@ void create_unicast_clock_update(linkaddr_t coordinator, clock_time_t clock_valu
     //creation
     msg->clock_value = clock_value;
     msg->time_slot_start = time_slot_start;
-    msg->duration = duration;
+    msg->num_coordinator = num_coordinator;
     msg->window = window;
     msg->type = 9;
     // Set nullnet buffer and length
@@ -97,7 +93,7 @@ void create_multicast_clock_update(clock_time_t clock_value,int window,int num_c
 
     //creation
     msg->clock_value = clock_value;
-    msg->duration = num_coordinators;
+    msg->num_coordinator = num_coordinators;
     msg->window = window;
     msg->type = 9;
     // Set nullnet buffer and length
