@@ -37,7 +37,6 @@ AUTOSTART_PROCESSES(&coordinator_node_process);
 
 // declaration of functions
 void rcv_hello_msg_sensors(struct message *hello_msg);
-void rcv_time_slot();
 
 int is_addr_present(linkaddr_t addr)
 {
@@ -100,12 +99,6 @@ void input_callback(const void *data, uint16_t len,
       create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, GIVE_CLOCK_TYPE, clock_time());
     }
 
-    /*Simulate a slot time assignement*/
-    if (msg->type == 100 && msg->nodeType == BORDER_ROUTER)
-    { // msg type should be the type who say the border rooter gives a time slot to the coordinator
-      printf("Authorization to get data from the sensors nodes\n");
-      rcv_time_slot();
-    }
   }
 
   if (len == sizeof(struct message_data))
@@ -113,57 +106,36 @@ void input_callback(const void *data, uint16_t len,
 
     // Cast the message payload to a struct message_data pointer
     struct message_data *msg = (struct message_data *)data;
-
-    if (msg->type == DATA)
-    {
-      sensors_info[nb_sensors].data = msg->data;
-      printf("Coordinator received %d from sensor \n", sensors_info[nb_sensors].data);
+    sensors_info[nb_sensors].data = (int)msg->data;
+    create_unicast_message_data(border_router,*src,DATA,msg->data);
+    printf("Coordinator transfer %d from sensor \n",(int) msg->data);
     }
-  }
+  
   if (len == sizeof(struct message_clock_update))
   {
     printf("--------------------Receive an update message----------------------------- len of clock: %d and message: %d\n", (int)sizeof(struct message_clock_update), (int)sizeof(struct message));
     struct message_clock_update *msg = (struct message_clock_update *)data;
     set_custom_clock_offset(clock_time() - msg->clock_value);
     num_total_coordinators = msg->duration;
-    duration = msg->duration;
-    window = msg->window;
-    time_slot_start = msg->clock_value + (num_coordinator* (window/num_total_coordinators));
-    printf("Nb sensors: %d",nb_sensors);
-    if(nb_sensors > 0){
-        printf("Set sensor slot at: %d\n",nb_sensors);
-        etimer_set(&sensors_slot,window/nb_sensors);
+    if(num_total_coordinators > 0){
+      duration = msg->duration;
+      window = msg->window;
+      time_slot_start = msg->clock_value + (num_coordinator* (window/num_total_coordinators));
+      printf("Nb sensors: %d",nb_sensors);
+      if(nb_sensors > 0){
+          printf("Set sensor slot at: %d\n",nb_sensors);
+          etimer_set(&sensors_slot,(window/num_total_coordinators)/nb_sensors);
+      }
+      printf("Actual coord %d: %d :clockTime = %d,  New custom clock time = %d, new time_slot_start = %d,new duration =%d, new window = %d\n",(int)num_coordinator, (int)clock_time(), (int)(clock_time() - msg->clock_value), (int)custom_clock_time(), (int)time_slot_start, (int)duration,(int) window);
+    }else{
+      linkaddr_copy(&border_router, src);
+      printf("----------------------------Have receive the address of the border router addr: %d%d\n", src->u8[0], src->u8[1]);
+      create_unicast_message(border_router, packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, HELLO_TYPE, clock_time());
     }
-    printf("Actual coord %d: %d :clockTime = %d,  New custom clock time = %d, new time_slot_start = %d,new duration =%d, new window = %d\n",(int)num_coordinator, (int)clock_time(), (int)(clock_time() - msg->clock_value), (int)custom_clock_time(), (int)time_slot_start, (int)duration,(int) window);
+   
   }
 }
 
-/*---------------------------------------------------------------------------*/
-
-void rcv_time_slot()
-{
-
-  // Loop over the sensors_info table
-  for (int i = 0; i < nb_sensors; i++)
-  {
-    // Access the current sensor_info element using the index i
-    if (!linkaddr_cmp(&sensors_info[i].addr, &linkaddr_null))
-    { // if the addr of the i element is not null
-      struct sensor_info current_sensor = sensors_info[i];
-      create_unicast_message(current_sensor.addr, packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, ALLOW_SEND_DATA, 0);
-    }
-  }
-  printf("Finished recolting data from all the sensors \n");
-  if (nb_sensors > 0)
-  {
-    // create_multicast_transfer_data(100,100);
-    // create_multicast_message(0,0,0,0);
-    // create_unicast_message(border_router,10,10,10,10);
-    create_unicast_transfer_data(border_router, TRANSFER_DATA, sensors_info, nb_sensors);
-    printf("Sending data to the border_router with addr %d %d\n", border_router.u8[0], border_router.u8[1]);
-    printf("sensor addr val is : %d%d\n", sensors_info[0].addr.u8[0], sensors_info[0].addr.u8[1]);
-  }
-}
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(coordinator_node_process, ev, data)
 {
@@ -177,15 +149,14 @@ PROCESS_THREAD(coordinator_node_process, ev, data)
   while (1)
   {
     PROCESS_WAIT_EVENT();
-    if(custom_clock_time() > time_slot_start && custom_clock_time() < time_slot_start + duration && nb_sensors > 0)
+    if(num_total_coordinators > 0 && custom_clock_time() > time_slot_start && custom_clock_time() < time_slot_start + window && nb_sensors > 0)
     {
       if(etimer_expired(&sensors_slot) || current_sensor == -1){ //Sensors_slot = 250ms
-        current_sensor+=1;
-        printf("sensors %d/%d  time remaining: %d\n",current_sensor,nb_sensors,(int)timer_remaining(&sensors_slot.timer));
-        create_unicast_message(sensors_info[current_sensor].addr, packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, ALLOW_SEND_DATA, 0);
         etimer_reset(&sensors_slot);
+        current_sensor+=1;
+        create_unicast_message(sensors_info[current_sensor].addr, packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, ALLOW_SEND_DATA, 0);
+        
         if(current_sensor == nb_sensors-1){
-          printf("Etimer expired, window: %d timer set: %d update time slot start to %d\n",window,window,(int)time_slot_start+window);
           current_sensor = -1;
           time_slot_start += window;
           etimer_set(&sensors_slot,window);
