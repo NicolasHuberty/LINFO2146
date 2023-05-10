@@ -21,7 +21,7 @@ static struct etimer alive_timer;
 static clock_time_t clock_offset = 0;
 clock_time_t clock_request_send_time;
 
-struct coordinator_info coordinators[2];
+struct coordinator_info coordinators[10];
 uint8_t num_coordinators = 0;
 
 struct sensor_info sensors_info[10];
@@ -42,6 +42,7 @@ void remove_non_responsive_coordinators() {
       printf("Coordinator %d%d didn't respond, removing...\n", coordinators[i].addr.u8[0], coordinators[i].addr.u8[1]);
       for (uint8_t j = i; j < num_coordinators - 1; j++) {
         coordinators[j] = coordinators[j + 1];
+        create_unicast_message(coordinators[j].addr,packetbuf_attr(PACKETBUF_ATTR_RSSI),BORDER_ROUTER,HELLO_TYPE,(int)j);
       }
       num_coordinators--;
     } else {
@@ -117,15 +118,6 @@ void berkeley_algorithm() {
   clock_time_t average = sum / (num_coordinators + 1);
   clock_offset = average - clock_time(); //TODO Local changes
   create_multicast_clock_update(average,WINDOW,num_coordinators);
-  // Send adjusted clock value to coordinators
-  //for (uint8_t i = 0; i < num_coordinators; i++) {
-  //  printf("Treat coordinator %d with clock_val received: %d\n",(int)i,(int)coordinators[i].clock_value);
-  //  coordinators[i].clock_value =  average-coordinators[i].clock_value;
-  //  coordinators[i].time_slot_start = clock_offset + ((WINDOW / num_coordinators) * i);
-  //  printf("Send an update clock to coordinator %d with coord clock_val: %d and slot start: %d and duration: %d\n",(int)i,(int)coordinators[i].clock_value,(int)coordinators[i].time_slot_start,(int)WINDOW/num_coordinators);
-  //  create_unicast_clock_update(coordinators[i].addr, coordinators[i].clock_value,coordinators[i].time_slot_start,WINDOW, WINDOW / num_coordinators);
-  //}
-
   etimer_set(&alive_timer, CLOCK_REQUEST_INTERVAL + CLOCK_SECOND);
   printf("Time synchronized with Berkeley algorithm, new clock offset: %ld and new clock expected: %ld and was before: %ld coordinator time:%ld\n", clock_offset, average, clock_time(), coordinators[0].clock_value);
 }
