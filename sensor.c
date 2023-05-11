@@ -72,7 +72,7 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
   }
 
   struct message *msg = (struct message*) data;
-	  if(msg->type == RESPONSE_HELLO_MSG){
+	  if(msg->type == RESPONSE_HELLO_MSG && msg->nodeType == COORDINATOR){
 	  	printf("Received message from coord node %d.%d with RSSI %d\n", src->u8[0], src->u8[1], msg->rssi);
 		// Check if this coord is already in the list
 		int coord_index = -1;
@@ -99,12 +99,10 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
   	}
 	  
 
- if(msg->type == HELLO_TYPE && msg->nodeType == COORDINATOR) {
- 	printf("sent unicast\n");
-  	create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, 0);
- }
-
  if(msg->type == HELLO_TYPE && msg->nodeType == SENSOR) {
+    
+  create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG, 0);
+
  	printf("Received message from sensor node %d.%d with RSSI %d\n", src->u8[0], src->u8[1], msg->rssi);
 		
     int sensor_index = -1;
@@ -129,6 +127,16 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
     }
   }
     
+     if(msg->type == HELLO_TYPE && msg->nodeType == COORDINATOR) {
+ 	    printf("sent unicast\n");
+  	  create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, 0);
+    }
+    if(msg->type == DATA && msg->nodeType == SENSOR){
+      //Forward data to coordinator
+      printf("Forward data received by a sensors\n");
+      create_unicast_message(coord_node,(int)2,SENSOR,NOT_MY_DATA,msg->data);
+  }
+
     if(msg->type == ALLOW_SEND_DATA && msg->nodeType == COORDINATOR && linkaddr_cmp(&coord_node, src)){
 		printf("Received allow_send_data, timer: %d \n", (int)(2*(clock_time()-previous_message_time)));
 		printf("Timer remaining: %ld\n",timer_remaining(&alive.timer));
@@ -141,10 +149,17 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 	 	 int random_value = (random_rand() % 100) + 50;
 	 	 create_unicast_message_data(coord_node, *src, DATA, random_value);
 	 	 //printf("Sent %d to coord\n", random_value);
+     printf("Number of connected sensors: %d\n",num_sensors);
+     if(num_sensors > 0){
+      for(int i = 0; i < num_sensors; i++){
+        printf("Forward allow message\n");
+        create_unicast_message(sensor_list[i],packetbuf_attr(PACKETBUF_ATTR_RSSI),COORDINATOR,ALLOW_SEND_DATA,0);
+      }
+     }
 		}
 }
 
-/*---------------------------------------------------------------------------*/
+/*-----------------------------------------------SENSOR----------------------------*/
 void choose_parent() {
 	int previous_rssi = best_rssi_coord;
 	printf("Entered choose_parent, Number of coords: %d\n", num_coords);
@@ -186,7 +201,7 @@ if(num_coords > 0 && best_rssi_coord != -100){
  } else if(num_sensors > 0) {
   	if(best_rssi_index_sensor != -1) {
     // Set selected parent as sensor
-    sensor_node = sensors_list[best_rssi_index_sensor].addr;
+    coord_node = sensors_list[best_rssi_index_sensor].addr; // ATTENTION MODIFICATION IMPORTANTE
     printf("Selected parent is sensor with addr: %d.%d\n", sensor_node.u8[0], sensor_node.u8[1]);
     create_unicast_message(sensor_node, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, CHOSEN_PARENT, 0);
     
