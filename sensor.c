@@ -53,7 +53,7 @@ static int best_rssi_index_coord = -1;
 static int best_rssi_sensor = -100;
 static int best_rssi_index_sensor = -1;
 
-static struct etimer alive_timer;
+static struct etimer alive;
 
 /*---------------------------------------------------------------------------*/
 PROCESS(sensor_node_process, "Sensor Node Process");
@@ -67,7 +67,7 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
   // Check if the message length is correct
 
   if(len != sizeof(struct message)) {
-    printf("Invalid message length: %d (expected %d)\n", (int)len,(int) sizeof(struct message));
+    //printf("Invalid message length: %d (expected %d)\n", (int)len,(int) sizeof(struct message));
     return;
   }
 
@@ -131,13 +131,16 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
     
     if(msg->type == ALLOW_SEND_DATA && msg->nodeType == COORDINATOR && linkaddr_cmp(&coord_node, src)){
 		printf("Received allow_send_data, timer: %d \n", (int)(2*(clock_time()-previous_message_time)));
-		etimer_set(&alive_timer, CLOCK_SECOND);
+		printf("Timer remaining: %ld\n",timer_remaining(&alive.timer));
+    if(timer_remaining(&alive.timer) < (int)(2*(clock_time()-previous_message_time))){
+      //Berkeley algo does not restart
+      etimer_set(&alive, (int)2*(clock_time()-previous_message_time));
+    }
 		previous_message_time = clock_time();
-		
 		// Generate and send random data
 	 	 int random_value = (random_rand() % 100) + 50;
-	 	 create_unicast_message_data(*dest, *src, DATA, random_value);
-	 	 printf("Sent %d to coord\n", random_value);
+	 	 create_unicast_message_data(coord_node, *src, DATA, random_value);
+	 	 //printf("Sent %d to coord\n", random_value);
 		}
 }
 
@@ -148,6 +151,7 @@ void choose_parent() {
 
   for(int i = 0; i < num_coords; i++) {
   if(coords[i].rssi > best_rssi_coord) {
+      printf("Coord %d have a better rssi than: %d\n",i,best_rssi_index_coord);
       best_rssi_coord = coords[i].rssi;
       best_rssi_index_coord = i;
     }
@@ -172,7 +176,7 @@ if(num_coords > 0 && best_rssi_coord != -100){
 	coord_node = coords[best_rssi_index_coord].addr;
 	printf("Selected parent is coord with addr: %d.%d\n", coord_node.u8[0], coord_node.u8[1]);
 	create_unicast_message(coord_node, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, CHOSEN_PARENT, 0);
-	
+	etimer_set(&alive,10*CLOCK_SECOND);
   } else {
 	coord_node.u8[0] = 0;
 	coord_node.u8[1] = 0;
@@ -196,23 +200,30 @@ if(num_coords > 0 && best_rssi_coord != -100){
 
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(sensor_node_process, ev, data) {
-  
+  static struct etimer periodic_timer;
   PROCESS_BEGIN();
 
   nullnet_set_input_callback(input_callback);
   
   create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, clock_time());
-
+  etimer_set(&alive,20*CLOCK_SECOND);
+  etimer_set(&periodic_timer,500);
   while(1) {  
- 	if(etimer_expired(&alive_timer)){
- 		etimer_set(&alive_timer, 5*CLOCK_SECOND);
-		coords[best_rssi_index_coord].rssi = -100;
-		printf("RESET RSSI\n");
- 		choose_parent();
- 	}
-  
-    /* Wait for the next transmission interval */
     PROCESS_WAIT_EVENT();
+
+    if(etimer_expired(&periodic_timer)){
+      etimer_reset(&periodic_timer);
+    }
+    if(etimer_expired(&alive)){
+      //printf("Reset rssi of %d\n",best_rssi_index_coord);
+      coords[best_rssi_index_coord].rssi = -100;
+      best_rssi_coord = -1;
+      if(num_coords > 0 ){
+        num_coords--;
+      }
+      choose_parent();
+      etimer_set(&alive,20*CLOCK_SECOND);
+    }  
   }
 
   PROCESS_END();
