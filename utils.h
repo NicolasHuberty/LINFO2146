@@ -23,6 +23,8 @@
 #define CHOSEN_PARENT 7 //sensor choose node as parent
 #define RESPONSE_HELLO_MSG 8 // node respond to a hello_msg
 #define TRANSFER_DATA 9 // coordinator transfering data to border router
+#define REMOVE_PARENT 10
+#define NOT_MY_DATA 11
 
 #define BORDER_ROUTER 100 //2
 #define COORDINATOR 101 //1

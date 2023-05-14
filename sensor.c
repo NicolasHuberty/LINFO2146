@@ -65,104 +65,123 @@ void choose_parent();
 void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const linkaddr_t *dest) {
   
   // Check if the message length is correct
-
+  /*
   if(len != sizeof(struct message)) {
-    //printf("Invalid message length: %d (expected %d)\n", (int)len,(int) sizeof(struct message));
+    printf("Invalid message length: %d (expected %d)\n", (int)len,(int) sizeof(struct message));
     return;
   }
+ */
 
   struct message *msg = (struct message*) data;
-	  if(msg->type == RESPONSE_HELLO_MSG && msg->nodeType == COORDINATOR){
-	  	printf("Received message from coord node %d.%d with RSSI %d\n", src->u8[0], src->u8[1], msg->rssi);
-		// Check if this coord is already in the list
-		int coord_index = -1;
-		for(int i=0; i<num_coords; i++){
-		  if(linkaddr_cmp(&coord_list[i], src)){
-		    coord_index = i;
-		    break;
-		  }
-		}
-
-		// Add the new coord to the list
-		if(coord_index == -1){
-		  coord_list[num_coords] = *src;
-		  coords[num_coords].addr = *src; 
-		  coords[num_coords].rssi = msg->rssi;
-		  num_coords += 1;
-		  printf("Coordinator node: %d.%d has been added to the list \n", src->u8[0], src->u8[1]);
-		  printf("Number of coords: %d\n", num_coords);
-		} else {
-		  // Update the RSSI value for an existing coord
-		  coords[coord_index].rssi = msg->rssi;
-		}
-		choose_parent();	
-  	}
 	  
+  if(msg->type == RESPONSE_HELLO_MSG && msg->nodeType == COORDINATOR){
+  	printf("Received message from coord node %d.%d with RSSI %d\n", src->u8[0], src->u8[1], msg->rssi);
+	// Check if this coord is already in the list
+	int coord_index = -1;
+	for(int i=0; i<num_coords; i++){
+	  if(linkaddr_cmp(&coord_list[i], src)){
+	    coord_index = i;
+	    break;
+	  }
+	}
 
- if(msg->type == HELLO_TYPE && msg->nodeType == SENSOR) {
-    
-  create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG, 0);
+	// Add the new coord to the list
+	if(coord_index == -1){
+	  coord_list[num_coords] = *src;
+	  coords[num_coords].addr = *src; 
+	  coords[num_coords].rssi = msg->rssi;
+	  num_coords += 1;
+	  printf("Coordinator node: %d.%d has been added to the list \n", src->u8[0], src->u8[1]);
+	  printf("Number of coords: %d\n", num_coords);
+	} else {
+	  // Update the RSSI value for an existing coord
+	  coords[coord_index].rssi = msg->rssi;
+	}
+	choose_parent();	
+}
+  
 
- 	printf("Received message from sensor node %d.%d with RSSI %d\n", src->u8[0], src->u8[1], msg->rssi);
+ if(msg->nodeType == SENSOR) {
+ 	printf("Sensor node %d.%d with RSSI %d chose me as parent\n", src->u8[0], src->u8[1], msg->rssi);
 		
-    int sensor_index = -1;
-    for(int i=0; i<num_sensors; i++){
-      if(linkaddr_cmp(&sensor_list[i], src)){
-        sensor_index = i;
-        break;
-      }
-    }
-    
+	int sensor_index = -1;
+	for(int i=0; i<num_sensors; i++){
+	  if(linkaddr_cmp(&sensor_list[i], src)){
+	    sensor_index = i;
+	    break;
+	  }
+	}
+	
 	if(sensor_index == -1){
-      sensor_list[num_sensors] = *src;
-      sensors_list[num_sensors].addr = *src; 
-      sensors_list[num_sensors].rssi = msg->rssi;
-      num_sensors += 1;
-      printf("Sensor node: %d.%d has been added to the list \n", src->u8[0], src->u8[1]);
-      printf("Number of sensors: %d\n", num_sensors);
+	  sensor_list[num_sensors] = *src;
+	  sensors_list[num_sensors].addr = *src; 
+	  sensors_list[num_sensors].rssi = msg->rssi;
+	  num_sensors += 1;
+	  printf("Sensor node: %d.%d has been added to the list \n", src->u8[0], src->u8[1]);
+	  printf("Number of sensors: %d\n", num_sensors);
 
-    } else {
-      // Update the RSSI value for an existing coord
-      sensors_list[sensor_index].rssi = msg->rssi;
-    }
+	} else {
+	  // Update the RSSI value for an existing coord
+	  sensors_list[sensor_index].rssi = msg->rssi;
+	}
   }
-    
-     if(msg->type == HELLO_TYPE && msg->nodeType == COORDINATOR) {
- 	    printf("sent unicast\n");
-  	  create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, 0);
-    }
-    if(msg->type == DATA && msg->nodeType == SENSOR){
-      //Forward data to coordinator
-      printf("Forward data received by a sensors\n");
-      create_unicast_message(coord_node,(int)2,SENSOR,NOT_MY_DATA,msg->data);
-  }
+  
+  if(sensor_node.u8[0] != 0) {
+	int random_value = (random_rand() % 100) + 50;
+	create_unicast_message_data(sensor_node, *src, DATA, random_value);
+	printf("sent value %d to sensor parent (acting as coord) with addr: %d.%d\n", random_value, sensor_node.u8[0],sensor_node.u8[1]);
+	}
 
-    if(msg->type == ALLOW_SEND_DATA && msg->nodeType == COORDINATOR && linkaddr_cmp(&coord_node, src)){
+	if(msg->type == DATA && num_coords > 0){
+	 //Forward data of sensor connected to a sensor as parent to the coordinator which is the parent of the sensor parent
+	  //since I am sending NOT_MY_DATA and not DATA to the coord parent, it still needs to be implemented by coord to receive this kind of msg
+//	  create_unicast_message(coord_node,msg->rssi,SENSOR,NOT_MY_DATA,msg->data);
+	  create_unicast_message_data(coord_node,*src,DATA,msg->data);
+	  printf("Forwarded data %d received by a sensor child to coord with addr: %d.%d\n", (int)msg->data, coord_node.u8[0], coord_node.u8[1]);
+	}
+
+	if(msg->type == HELLO_TYPE && msg->nodeType == COORDINATOR) {
+		create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, 0);
+		printf("sensor sent unicast message to coord\n");
+	}
+	
+	if(msg->type == HELLO_TYPE && msg->nodeType == SENSOR) {
+		create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG, 0);
+		printf("sensor sent unicast message to sensor (acting as coord)\n");
+		choose_parent();
+	}
+
+	if(msg->type == ALLOW_SEND_DATA && msg->nodeType == COORDINATOR && linkaddr_cmp(&coord_node, src)){
 		printf("Received allow_send_data, timer: %d \n", (int)(2*(clock_time()-previous_message_time)));
 		printf("Timer remaining: %ld\n",timer_remaining(&alive.timer));
-    if(timer_remaining(&alive.timer) < (int)(2*(clock_time()-previous_message_time))){
-      //Berkeley algo does not restart
-      etimer_set(&alive, (int)2*(clock_time()-previous_message_time));
-    }
-		previous_message_time = clock_time();
-		// Generate and send random data
-	 	 int random_value = (random_rand() % 100) + 50;
-	 	 create_unicast_message_data(coord_node, *src, DATA, random_value);
-	 	 //printf("Sent %d to coord\n", random_value);
-     printf("Number of connected sensors: %d\n",num_sensors);
-     if(num_sensors > 0){
-      for(int i = 0; i < num_sensors; i++){
-        printf("Forward allow message\n");
-        create_unicast_message(sensor_list[i],packetbuf_attr(PACKETBUF_ATTR_RSSI),COORDINATOR,ALLOW_SEND_DATA,0);
-      }
-     }
+		if(timer_remaining(&alive.timer) < (int)(2*(clock_time()-previous_message_time))){
+			//Berkeley algo does not restart
+			etimer_set(&alive, (int)2*(clock_time()-previous_message_time));
 		}
+
+		previous_message_time = clock_time();
+
+		// Generate and send random data
+		int random_value = (random_rand() % 100) + 50;
+		create_unicast_message_data(coord_node, *src, DATA, random_value);
+		//printf("Sent %d to coord\n", random_value);
+
+		printf("Number of connected sensors: %d\n",num_sensors);
+
+		if(num_sensors > 0){
+			for(int i = 0; i < num_sensors; i++){
+		create_unicast_message(sensor_list[i],packetbuf_attr(PACKETBUF_ATTR_RSSI),COORDINATOR,ALLOW_SEND_DATA,0);
+				printf("Forwarded allow message from sensor with addr: %d.%d connected to me\n", sensor_list[i].u8[0],sensor_list[i].u8[1]);
+			}
+		}
+	}
 }
 
 /*-----------------------------------------------SENSOR----------------------------*/
 void choose_parent() {
+	printf("Entered choose_parent\n");
+	
 	int previous_rssi = best_rssi_coord;
-	printf("Entered choose_parent, Number of coords: %d\n", num_coords);
 
   for(int i = 0; i < num_coords; i++) {
   if(coords[i].rssi > best_rssi_coord) {
@@ -174,6 +193,7 @@ void choose_parent() {
   
   for(int i = 0; i < num_sensors; i++) {
   if(sensors_list[i].rssi > best_rssi_sensor) {
+	  printf("Sensor %d have a better rssi than: %d\n",i,best_rssi_index_sensor);
       best_rssi_sensor = sensors_list[i].rssi;
       best_rssi_index_sensor = i;
     }
@@ -198,11 +218,11 @@ if(num_coords > 0 && best_rssi_coord != -100){
   	printf("No candidates, parent addr is: %d.%d\n", coord_node.u8[0], coord_node.u8[1]);
   }
 
- } else if(num_sensors > 0) {
+ } else if(num_sensors > 0 && best_rssi_sensor != -100) {
   	if(best_rssi_index_sensor != -1) {
     // Set selected parent as sensor
-    coord_node = sensors_list[best_rssi_index_sensor].addr; // ATTENTION MODIFICATION IMPORTANTE
-    printf("Selected parent is sensor with addr: %d.%d\n", sensor_node.u8[0], sensor_node.u8[1]);
+    sensor_node = sensors_list[best_rssi_index_sensor].addr; // ATTENTION MODIFICATION IMPORTANTE
+    printf("Selected parent is sensor (acting as coord) with addr: %d.%d\n", sensor_node.u8[0], sensor_node.u8[1]);
     create_unicast_message(sensor_node, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, CHOSEN_PARENT, 0);
     
   } else {
@@ -232,9 +252,13 @@ PROCESS_THREAD(sensor_node_process, ev, data) {
     if(etimer_expired(&alive)){
       //printf("Reset rssi of %d\n",best_rssi_index_coord);
       coords[best_rssi_index_coord].rssi = -100;
+      sensors_list[best_rssi_index_sensor].rssi = -100;
       best_rssi_coord = -1;
       if(num_coords > 0 ){
         num_coords--;
+      }
+      if(num_sensors > 0 ){
+        num_sensors--;
       }
       choose_parent();
       etimer_set(&alive,20*CLOCK_SECOND);
