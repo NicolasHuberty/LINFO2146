@@ -50,6 +50,7 @@ static int best_rssi_sensor = -100;
 static int best_rssi_index_sensor = -1;
 
 static struct etimer alive;
+static int parent = 0;
 /*---------------------------------------------------------------------------*/
 PROCESS(sensor_node_process, "Sensor Node Process");
 AUTOSTART_PROCESSES(&sensor_node_process);
@@ -90,7 +91,10 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 }
   
 	if((msg->type == HELLO_TYPE && msg->nodeType == SENSOR) || (msg->type == RESPONSE_HELLO_MSG && msg->nodeType == SENSOR)) {
-
+    if (msg->type == RESPONSE_HELLO_MSG && msg->nodeType == SENSOR){
+      parent = 1;
+      printf("Variable parent : %d\n", parent);
+    }  
 	int sensor_index = -1;
 	for(int i=0; i<num_sensors; i++){
 	  if(linkaddr_cmp(&sensors_list[i].addr, src)){
@@ -149,15 +153,17 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 		int random_value = (random_rand() % 100) + 50;
 		create_unicast_message(master_node,packetbuf_attr(PACKETBUF_ATTR_RSSI),SENSOR,DATA,random_value);	
 		printf("Sent from coordinator: %d to coord\n", random_value);
-		if(num_sensors > 0 && num_coords > 0){ //Has a coordinator and sensors
-			for(int i = 0; i < num_sensors; i++){
+    printf("Variable parent : %d\n", parent);
+    for(int i = 0; i < num_sensors; i++){
+        if (num_sensors > 0 && num_coords > 0 && parent == 1){
 				sensors_list[i].alive--;
 				create_unicast_message(sensors_list[i].addr,packetbuf_attr(PACKETBUF_ATTR_RSSI),COORDINATOR,ALLOW_SEND_DATA,0);
 				printf("Forwarded allow message from sensor with addr: %d.%d connected to me\n", sensors_list[i].addr.u8[0],sensors_list[i].addr.u8[1]);
+        }  
+
 			}
-		}
+    }
 	}
-}
 
 /*-----------------------------------------------SENSOR----------------------------*/
 void choose_parent() {	
@@ -203,6 +209,7 @@ if(num_coords > 0 && best_rssi_coord != -100){
     // Set selected parent as sensor
     master_node = sensors_list[best_rssi_index_sensor].addr; // ATTENTION MODIFICATION IMPORTANTE
     printf("Selected parent is sensor (acting as coord) with addr: %d.%d\n", master_node.u8[0], master_node.u8[1]);
+    printf("Variable parent : %d\n", parent);
     create_unicast_message(master_node, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, CHOSEN_PARENT, 0);
     etimer_set(&alive,10*CLOCK_SECOND);
   } else {

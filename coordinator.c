@@ -24,12 +24,14 @@ clock_time_t custom_clock_time()
 
 linkaddr_t border_router;
 int num_coordinator = 0;
-clock_time_t time_slot_start;
-int window;
+clock_time_t time_slot_start; //start of coordinator slot
+int window; //duration of coordinator slot
 int num_total_coordinators = 0;
-struct sensor_info sensors_info[256];
-int nb_sensors = 0;
+struct sensor_info sensors_info[256]; //array of sensors
+int nb_sensors = 0; //total number of sensors stored in the coordinator
 int current_sensor = -1;
+int alive = 1; //variable that store if sensors are responsive
+
 /*---------------------------------------------------------------------------*/
 PROCESS(coordinator_node_process, "Coordinator");
 AUTOSTART_PROCESSES(&coordinator_node_process);
@@ -47,6 +49,33 @@ int is_addr_present(linkaddr_t addr)
     }
   }
   return 0; // Address is not present in the array
+}
+/*---------------------------------------------------------------------------*/
+void delete_sensor(linkaddr_t sensor_addr){
+    //printf("There is actually %d\n", nb_sensors);
+    int sensor_index = -1;
+    //printf("sensor addr we are looking to delete : %d.%d\n", sensor_addr.u8[0], sensor_addr.u8[1]);
+    for (int i = 0; i < nb_sensors; i++){
+      //printf("current sensor addr: %d.%d\n", sensors_info[i].addr.u8[0], sensors_info[i].addr.u8[1]);
+      if (linkaddr_cmp(&sensors_info[i].addr, &sensor_addr)){
+        sensor_index = i;
+        //printf("Found index of the sensor\n");
+
+        if (sensor_index != -1){
+        int j = 0;
+        for (j = i; j < nb_sensors - 1; j++){
+          sensors_info[j] = sensors_info[j+1];
+          //printf("shift operated\n");
+          }
+       
+        nb_sensors -= 1;
+        //printf("One sensor deleted from list\n");
+        //printf("There is now %d sensors \n", nb_sensors);
+        break;
+
+        }
+    }
+  }
 }
 /*---------------------------------------------------------------------------*/
 void input_callback(const void *data, uint16_t len,
@@ -85,7 +114,6 @@ void input_callback(const void *data, uint16_t len,
       printf("Sensor choose coordinator as parent\n");
       struct sensor_info new_sensor;
       new_sensor.addr = *src;
-      new_sensor.data = 0;
       sensors_info[nb_sensors] = new_sensor;
       nb_sensors += 1;
       printf("Sensor add to the list of sensors with addr: %d%d\n", new_sensor.addr.u8[0], new_sensor.addr.u8[1]);
@@ -97,21 +125,27 @@ void input_callback(const void *data, uint16_t len,
       printf("Try to send clock_time from coordinator\n");
       create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, GIVE_CLOCK_TYPE, clock_time());
     }
-    if (msg->type == DATA || msg->type == NOT_MY_DATA)
-    {
-      // Cast the message payload to a struct message_data pointer
-      struct message *msg = (struct message *)data;
-      sensors_info[nb_sensors].data = (int)msg->data;
-      if(msg->type == NOT_MY_DATA){
-        create_unicast_message_data(border_router,*src,DATA,msg->data); //TO adapt taking the address
-      }else{
-        create_unicast_message_data(border_router,*src,DATA,msg->data);
-      }
-      printf("Coordinator transfer %d from sensor \n",(int) msg->data);
-      }
+
   }
+
+  if (len == sizeof(struct message_data))
+  {
+     // Cast the message payload to a struct message_data pointer
+    struct message_data *msg = (struct message_data *)data;
+  
+    alive = 1; //set alive to 1 since the sensor has send data
+  
+    if(msg->type == NOT_MY_DATA){
+      create_unicast_message_data(border_router,*src,DATA,msg->data); //TO adapt taking the address
+    }else{
+      create_unicast_message_data(border_router,*src,DATA,msg->data);
+    }
+    printf("Coordinator transfer %d from sensor \n",(int) msg->data);
+    }
+  
   if (len == sizeof(struct message_clock_update))
   {
+    //Use the information send from the border-routeur to make the coordinator & sensors slot 
     printf("--------------------Receive an update message----------------------------- len of clock: %d and message: %d\n", (int)sizeof(struct message_clock_update), (int)sizeof(struct message));
     struct message_clock_update *msg = (struct message_clock_update *)data;
     set_custom_clock_offset(clock_time() - msg->clock_value);
@@ -121,7 +155,7 @@ void input_callback(const void *data, uint16_t len,
       time_slot_start = msg->clock_value + (num_coordinator* (window/num_total_coordinators));
       printf("Nb sensors: %d",nb_sensors);
       if(nb_sensors > 0){
-          printf("Set sensor slot at: %d\n",nb_sensors);
+          printf(" Set sensor slot at: %d\n",nb_sensors);
           etimer_set(&sensors_slot,(window/num_total_coordinators)/nb_sensors);
       }
       printf("Actual coord %d: %d :clockTime = %d,  New custom clock time = %d, new time_slot_start = %d, new window = %d\n",(int)num_coordinator, (int)clock_time(), (int)(clock_time() - msg->clock_value), (int)custom_clock_time(), (int)time_slot_start, (int) window);
@@ -149,19 +183,42 @@ PROCESS_THREAD(coordinator_node_process, ev, data)
     PROCESS_WAIT_EVENT();
     if(num_total_coordinators > 0 && custom_clock_time() > time_slot_start && custom_clock_time() < time_slot_start + window && nb_sensors > 0)
     {
+      //printf("Entering coord slot\n");
       if(etimer_expired(&sensors_slot) || current_sensor == -1){ //Sensors_slot = 250ms
-        etimer_reset(&sensors_slot);
+        //printf("Entering new sensor slot\n");
+        printf("alive = %d\n", alive);
+        if (alive == 0){
+          if (current_sensor == -1){
+            //delete last sensor if not send data
+            printf("last Sensor is not responding\n");
+            create_unicast_message_data(border_router, sensors_info[nb_sensors-1].addr, DATA, -1);
+            delete_sensor(sensors_info[nb_sensors-1].addr);
+            }
+          else {
+            //delete any sensor that did not send data
+            printf("Sensor is not responding\n");
+            create_unicast_message_data(border_router, sensors_info[nb_sensors-1].addr, DATA, -1);
+            delete_sensor(sensors_info[current_sensor].addr);
+            current_sensor -= 1;    
+          }
+        }
+
+        alive = 0;
         current_sensor+=1;
+        //printf("current_sensor variable = %d\n", current_sensor);
+        //printf("current sensor addr: %d.%d\n", sensors_info[current_sensor].addr.u8[0], sensors_info[current_sensor].addr.u8[1]);
+        //printf("bool alive = %d\n", alive);
+
         create_unicast_message(sensors_info[current_sensor].addr, packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, ALLOW_SEND_DATA, 0);
-        
+        etimer_reset(&sensors_slot);
         if(current_sensor == nb_sensors-1){
           current_sensor = -1;
           time_slot_start += window;
-          etimer_set(&sensors_slot,window);
+          etimer_reset(&sensors_slot);        
         }
       }
     }
-
+    //si plus la je send -1 au border
     // Send the message
     etimer_reset(&periodic_timer);
   }
