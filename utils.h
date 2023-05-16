@@ -42,6 +42,7 @@ struct coordinator_info {
   int nb_sensors;
   struct sensor_info sensors[256];
 };
+
 struct message {
   int rssi;
   int nodeType;

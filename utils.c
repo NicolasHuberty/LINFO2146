@@ -45,16 +45,14 @@ void create_unicast_message(linkaddr_t addr,int rssi, int nodeType,int type,cloc
   free(msg);
 }
 
-void create_unicast_message_data(linkaddr_t dest,linkaddr_t addr, int type, int random_value) {
+void create_unicast_message_data(linkaddr_t dest,linkaddr_t addr, int type, int data) {
   // Allocate memory for the message
   struct message_data *msg;
   msg = (struct message_data*) malloc(sizeof(struct message_data));
-
   //creation
   msg->addr = addr;
   msg->type = type;
-  msg->data = random_value;
-
+  msg->data = data;
   // Set nullnet buffer and length
   nullnet_buf = (uint8_t *)msg;
   nullnet_len = sizeof(struct message_data);

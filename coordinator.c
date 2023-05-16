@@ -97,19 +97,19 @@ void input_callback(const void *data, uint16_t len,
       printf("Try to send clock_time from coordinator\n");
       create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, GIVE_CLOCK_TYPE, clock_time());
     }
-
+    if (msg->type == DATA || msg->type == NOT_MY_DATA)
+    {
+      // Cast the message payload to a struct message_data pointer
+      struct message *msg = (struct message *)data;
+      sensors_info[nb_sensors].data = (int)msg->data;
+      if(msg->type == NOT_MY_DATA){
+        create_unicast_message_data(border_router,*src,DATA,msg->data); //TO adapt taking the address
+      }else{
+        create_unicast_message_data(border_router,*src,DATA,msg->data);
+      }
+      printf("Coordinator transfer %d from sensor \n",(int) msg->data);
+      }
   }
-
-  if (len == sizeof(struct message_data))
-  {
-
-    // Cast the message payload to a struct message_data pointer
-    struct message_data *msg = (struct message_data *)data;
-    sensors_info[nb_sensors].data = (int)msg->data;
-    create_unicast_message_data(border_router,*src,DATA,msg->data);
-    printf("Coordinator transfer %d from sensor \n",(int) msg->data);
-    }
-  
   if (len == sizeof(struct message_clock_update))
   {
     printf("--------------------Receive an update message----------------------------- len of clock: %d and message: %d\n", (int)sizeof(struct message_clock_update), (int)sizeof(struct message));
