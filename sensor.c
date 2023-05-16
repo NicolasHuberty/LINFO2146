@@ -109,7 +109,7 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 	}
   }
 
-	if(msg->type == DATA && num_coords > 0){ //If sensor receives data and has a coordinator -> Forward data with NOT_MY_DATA
+	if(msg->type == DATA) { //If sensor receives data and has a coordinator -> Forward data with NOT_MY_DATA
 		//Reset alive values
 		for(int i = 0; i < num_sensors; i++){
 			if(linkaddr_cmp(src,&sensors_list[i].addr)){
