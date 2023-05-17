@@ -130,6 +130,7 @@ void input_callback(const void *data, uint16_t len,
 
   if (len == sizeof(struct message_data))
   {
+    //printf("Coord has receiv data\n");
      // Cast the message payload to a struct message_data pointer
     struct message_data *msg = (struct message_data *)data;
   
@@ -159,6 +160,7 @@ void input_callback(const void *data, uint16_t len,
           etimer_set(&sensors_slot,(window/num_total_coordinators)/nb_sensors);
       }
       printf("Actual coord %d: %d :clockTime = %d,  New custom clock time = %d, new time_slot_start = %d, new window = %d\n",(int)num_coordinator, (int)clock_time(), (int)(clock_time() - msg->clock_value), (int)custom_clock_time(), (int)time_slot_start, (int) window);
+      alive = 1;
     }else{
       linkaddr_copy(&border_router, src);
       printf("----------------------------Have receive the address of the border router addr: %d%d\n", src->u8[0], src->u8[1]);
@@ -210,6 +212,7 @@ PROCESS_THREAD(coordinator_node_process, ev, data)
         //printf("bool alive = %d\n", alive);
 
         create_unicast_message(sensors_info[current_sensor].addr, packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, ALLOW_SEND_DATA, 0);
+        printf("Send allow data to sensor\n");
         etimer_reset(&sensors_slot);
         if(current_sensor == nb_sensors-1){
           current_sensor = -1;

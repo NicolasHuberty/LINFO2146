@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h> 
 #include "utils.h"
+#include "dev/serial-line.h" //for serial socket
 #define CLOCK_REQUEST_INTERVAL (5 * CLOCK_SECOND)
 #define WINDOW 1000
 
@@ -72,6 +73,7 @@ void input_callback(const void *data, uint16_t len,
       }
     }
     if(len == sizeof(struct message_data)){ //Receive a message data forwarded by a coordinator
+
     struct message_data *msg = (struct message_data *)data;
       for(int i = 0; i < num_coordinators; i++){
         if(linkaddr_cmp(&(coordinators[i].addr),(src))){ //Check wich coordinator contacts us
@@ -79,7 +81,17 @@ void input_callback(const void *data, uint16_t len,
           for(int j = 0; j < coordinators[i].nb_sensors;j++){ //Check if sensor is found in the coordinator list
             if(linkaddr_cmp(&msg->addr,&coordinators[i].sensors[j].addr)){
               found = true;
-              coordinators[i].sensors[j].data = msg->data; //Update the sensor;
+              if (msg->data == -1){
+
+                printf("Delete sensor by border routeur\n");
+                for(int k = j;k < coordinators[i].nb_sensors -1;k++){
+                  coordinators[i].sensors[j] = coordinators[i].sensors[j+1];
+                }
+                coordinators[i].nb_sensors -= 1;
+              }
+              else{
+                coordinators[i].sensors[j].data = msg->data; //Update the sensor;
+              }              
             }
           }
             if(coordinators[i].nb_sensors == 0 || !found){ //Add a new sensor
@@ -142,7 +154,7 @@ PROCESS_THREAD(border_router_node_process, ev, data){
   create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), BORDER_ROUTER, HELLO_TYPE, 00);
   etimer_set(&clock_request_timer, CLOCK_REQUEST_INTERVAL);
   etimer_set(&alive_timer,CLOCK_REQUEST_INTERVAL+CLOCK_SECOND);
-
+  serial_line_init(); //make the border-routeur sending his print on serial interface
   while (1) {
     PROCESS_WAIT_EVENT();
 
@@ -156,6 +168,7 @@ PROCESS_THREAD(border_router_node_process, ev, data){
       send_ask_clock_to_all_coordinators();
       etimer_set(&alive_timer,CLOCK_SECOND);
       etimer_reset(&clock_request_timer);
+      printf("Test send data \n");
     }
   }
   PROCESS_END();
