@@ -102,11 +102,7 @@ void input_callback(const void *data, uint16_t len,
     struct message_data *msg = (struct message_data *)data;
     alive = 1;
     if(msg->type == NOT_MY_DATA){
-<<<<<<< Updated upstream
-      create_unicast_message_data(border_router,*src,DATA,msg->data); //TO adapt taking the address
-=======
       create_unicast_message_data(border_router,msg->addr,DATA,msg->data);
->>>>>>> Stashed changes
     }else{
       create_unicast_message_data(border_router,*src,DATA,msg->data);
     }
@@ -159,7 +155,7 @@ PROCESS_THREAD(coordinator_node_process, ev, data){
           }
           else{
             printf("Sensor is not responding\n");
-            create_unicast_message_data(border_router, sensors_info[nb_sensors-1].addr, DATA, -1);
+            create_unicast_message_data(border_router, sensors_info[current_sensor].addr, DATA, -1);
             delete_sensor(sensors_info[current_sensor].addr);
             current_sensor -= 1;    
           }
@@ -176,6 +172,7 @@ PROCESS_THREAD(coordinator_node_process, ev, data){
         }
       }
     }
+
     etimer_reset(&periodic_timer);
   }
 

@@ -65,17 +65,10 @@ void input_callback(const void *data, uint16_t len,
         }
       }
     }
-<<<<<<< Updated upstream
-    if(len == sizeof(struct message_data)){ //Receive a message data forwarded by a coordinator
-
-    struct message_data *msg = (struct message_data *)data;
-    printf("border rcv data \n");
-=======
   }
     /*Receive a data from a coordinator*/
     if(len == sizeof(struct message_data)){ 
       struct message_data *msg = (struct message_data *)data;
->>>>>>> Stashed changes
       for(int i = 0; i < num_coordinators; i++){
         /*Check on the list of coordinator*/
         if(linkaddr_cmp(&(coordinators[i].addr),(src))){
@@ -83,21 +76,13 @@ void input_callback(const void *data, uint16_t len,
           for(int j = 0; j < coordinators[i].nb_sensors;j++){
             if(linkaddr_cmp(&msg->addr,&coordinators[i].sensors[j].addr)){
               found = true;
-<<<<<<< Updated upstream
-              printf("Print find sensor in border routeur\n");
-=======
               /*Check if the sensor has to be remove*/
->>>>>>> Stashed changes
               if (msg->data == -1){
-                printf("Delete sensor by border routeur\n");
                 for(int k = j;k < coordinators[i].nb_sensors -1;k++){
                   coordinators[i].sensors[j] = coordinators[i].sensors[j+1];
                 }
                 coordinators[i].nb_sensors -= 1;
-<<<<<<< Updated upstream
-=======
                 printf("Delete sensor of coord %d\n",i);
->>>>>>> Stashed changes
               }
               else{
                 coordinators[i].sensors[j].data = msg->data; //Update the sensor;
@@ -105,20 +90,12 @@ void input_callback(const void *data, uint16_t len,
               }              
             }
           }
-<<<<<<< Updated upstream
-            if(coordinators[i].nb_sensors == 0 || !found){ //Add a new sensor
-              coordinators[i].sensors[0].addr = msg->addr;
-              coordinators[i].sensors[0].data = msg->data;
-              coordinators[i].nb_sensors+=1;
-            }
-=======
           /*Receive data from a new sensor*/
           if(!found){
             coordinators[i].sensors[coordinators[i].nb_sensors].addr = msg->addr;
             coordinators[i].sensors[coordinators[i].nb_sensors].data = msg->data;
             coordinators[i].nb_sensors+=1;
           }
->>>>>>> Stashed changes
         }
       }
     }
@@ -168,6 +145,7 @@ void berkeley_algorithm() {
 }
 
 /*---------------------------------------------------------------------------*/
+
 PROCESS_THREAD(border_router_node_process, ev, data){
   PROCESS_BEGIN();
   nullnet_set_input_callback(input_callback);
