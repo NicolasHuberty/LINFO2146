@@ -25,7 +25,7 @@
 #define TRANSFER_DATA 9 // coordinator transfering data to border router
 #define REMOVE_PARENT 10
 #define NOT_MY_DATA 11
-#define TEST 12
+#define DO_YOU_NEED_PARENT 12
 #define BORDER_ROUTER 100 //2
 #define COORDINATOR 101 //1
 #define SENSOR 102 //0

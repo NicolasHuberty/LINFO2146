@@ -102,21 +102,31 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 			sensors_list[0].rssi = msg->rssi;
 			}
 	}
-		if(msg->type == RESPONSE_HELLO_MSG && msg->nodeType == SENSOR){
-			printf("Choose parent after response hello msg msg type: %ld\n",msg->data);
-			choose_parent();
-			if(num_coords < 0){ //Ask of connection
-				printf("Receive ask of become master node SEND HELLO TYPE 0\n");
+		//if(msg->type == RESPONSE_HELLO_MSG && msg->nodeType == SENSOR){
+		//	printf("Choose parent after response hello msg msg type: %ld\n",msg->data);
+			//choose_parent();
+		//	if(num_coords < 0){ //Ask of connection
+		//		printf("Receive ask of become master node SEND HELLO TYPE 0\n");
 				//No coordinator for sensors
-				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG, 0);
+		//		create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG, 0);
+		//	}
+		//}
+		if((msg->type == DO_YOU_NEED_PARENT && msg->nodeType == SENSOR)) {
+			printf("Received do you need parent\n");
+			printf("Num coords %d\n", num_coords);
+			if(num_coords <= 0){
+				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG, (int)0);
+				printf("SEND RESPONSEHELLO 0\n");
 			}
 		}
 		if(msg->type == HELLO_TYPE && msg->nodeType == SENSOR) { //Send RESPONSE_HELLO_MSG
 			printf("Receive HELLO MSG FROM OTHER SENSOR respond whith RESPONSE HELLO MESSAGE %d\n",num_coords>0); //Should add in the value 1 if connected to coordinator
 			//choose_parent();
 			if(num_coords > 0){
-				printf("SEND RESPONSEHELLO 1\n");
-				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG,(int) 1);
+				//printf("SEND RESPONSEHELLO 1\n");
+				//create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG,(int) 1);
+				printf("Do you need parent ?\n");
+				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, DO_YOU_NEED_PARENT,-1);
 			}else{
 				printf("SEND RESPONSEHELLO 0\n");
 				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG, (int)0);
