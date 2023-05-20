@@ -56,6 +56,7 @@ struct message_data {
   int data;
 };
 
+
 struct message_clock_update{
   int type;
   clock_time_t clock_value;  //3000

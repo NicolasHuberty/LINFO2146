@@ -137,7 +137,7 @@ void input_callback(const void *data, uint16_t len,
     alive = 1; //set alive to 1 since the sensor has send data
   
     if(msg->type == NOT_MY_DATA){
-      create_unicast_message_data(border_router,*src,DATA,msg->data); //TO adapt taking the address
+      create_unicast_message_data(border_router,msg->addr,DATA,msg->data); //TO adapt taking the address
     }else{
       create_unicast_message_data(border_router,*src,DATA,msg->data);
     }
@@ -199,7 +199,7 @@ PROCESS_THREAD(coordinator_node_process, ev, data)
           else {
             //delete any sensor that did not send data
             printf("Sensor is not responding\n");
-            create_unicast_message_data(border_router, sensors_info[nb_sensors-1].addr, DATA, -1);
+            create_unicast_message_data(border_router, sensors_info[current_sensor].addr, DATA, -1);
             delete_sensor(sensors_info[current_sensor].addr);
             current_sensor -= 1;    
           }

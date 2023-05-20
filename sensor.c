@@ -60,7 +60,7 @@ void choose_parent();
 void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const linkaddr_t *dest) {
 	if(len == sizeof(struct message)){
 		struct message *msg = (struct message*) data;
-
+		printf("Receive message with type %d, and nodeType %d and data %d\n", msg->type, msg->nodeType, (int)msg->data);
 		if(msg->type == HELLO_TYPE && msg->nodeType == COORDINATOR) { //Should be RESPOND_HELLO_TYPE BUT OK
 			create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, 0);
 			printf("sensor respont to hello message to coord\n");
@@ -90,8 +90,8 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 		choose_parent();	
 	}
 	
-		if((msg->type == HELLO_TYPE && msg->nodeType == SENSOR)) {
-			printf("HELLO TYPE FROM SENSOR WITH DATA VAL: %d\n",(int)msg->data);
+		if((msg->type == RESPONSE_HELLO_MSG && msg->nodeType == SENSOR)) {
+			printf("RESPONSE_HELLO_MSG FROM SENSOR WITH DATA VAL: %d\n",(int)msg->data);
 			if(msg->data == 0){
 			sensors_list[num_sensors].addr = *src; 
 			sensors_list[num_sensors].rssi = msg->rssi;
@@ -108,18 +108,18 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 			if(num_coords < 0){ //Ask of connection
 				printf("Receive ask of become master node SEND HELLO TYPE 0\n");
 				//No coordinator for sensors
-				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, 0);
+				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG, 0);
 			}
 		}
 		if(msg->type == HELLO_TYPE && msg->nodeType == SENSOR) { //Send RESPONSE_HELLO_MSG
 			printf("Receive HELLO MSG FROM OTHER SENSOR respond whith RESPONSE HELLO MESSAGE %d\n",num_coords>0); //Should add in the value 1 if connected to coordinator
-			choose_parent();
+			//choose_parent();
 			if(num_coords > 0){
 				printf("SEND RESPONSEHELLO 1\n");
 				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG,(int) 1);
 			}else{
 				printf("SEND RESPONSEHELLO 0\n");
-				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, (int)0);
+				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, TEST, (int)0);
 			}
 			
 		}
@@ -142,7 +142,8 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 
 			// Generate and send random data
 			int random_value = (random_rand() % 100) + 50;
-			create_unicast_message_data(master_node,*src,master_node,DATA,random_value);	
+			create_unicast_message_data(*src,master_node,DATA,random_value);
+			printf("Sensor sent: %d to coord\n", random_value);	
 			//printf("Sent from coordinator: %d to coord\n", random_value);
 			if(num_sensors > 0 && num_coords > 0){ //Has a coordinator and sensors
 				for(int i = 0; i < num_sensors; i++){
@@ -163,7 +164,7 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 					sensors_list[i].alive = 3;
 				}
 			}
-			create_unicast_message_data(master_node,*src,*dest,NOT_MY_DATA,(int)msg->data);
+			create_unicast_message_data(*src,*src,NOT_MY_DATA,(int)msg->data);
 			printf("Forwarded data %d received by a sensor child to coord with addr: %d.%d\n", (int)msg->data, master_node.u8[0], master_node.u8[1]);
 		}
 	}
