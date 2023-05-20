@@ -23,10 +23,25 @@
 #define CHOSEN_PARENT 7 //sensor choose node as parent
 #define RESPONSE_HELLO_MSG 8 // node respond to a hello_msg
 #define TRANSFER_DATA 9 // coordinator transfering data to border router
+#define REMOVE_PARENT 10
+#define NOT_MY_DATA 11
 
 #define BORDER_ROUTER 100 //2
 #define COORDINATOR 101 //1
 #define SENSOR 102 //0
+
+struct sensor_info {
+  linkaddr_t addr;
+  int data;
+};
+
+struct coordinator_info {
+  linkaddr_t addr;
+  clock_time_t clock_value;
+  clock_time_t time_slot_start;
+  int nb_sensors;
+  struct sensor_info sensors[256];
+};
 
 struct message {
   int rssi;
@@ -41,40 +56,17 @@ struct message_data {
   int data;
 };
 
-
-struct sensor_info {
-  linkaddr_t addr;
-  int data;
-
-};
-
-struct message_array_data {
-  linkaddr_t addr;
-  int type;
-  struct sensor_info sensors[256];
-  int nb_sensors;
-};
-
-struct coordinator_info {
-  linkaddr_t addr;
-  clock_time_t clock_value;
-  clock_time_t time_slot_start;
-  int nb_sensors;
-  struct sensor_info sensors[256];
-};
 struct message_clock_update{
   int type;
   clock_time_t clock_value;  //3000
   clock_time_t time_slot_start; // 3600 -> 4600 -> 5600 -> 6600
   int window; //1000
-  int duration; //200ms
+  int num_coordinator; //200ms
 };
-void create_multicast_message(int rssi, int eachNodeType,int type,clock_time_t clock_value);
-void create_unicast_message(linkaddr_t addr,int rssi, int eachNodeType,int type,clock_time_t clock_value);
-void create_unicast_message_data(linkaddr_t addr, int type, int data); //usually for sensors sending their data to coordinator
-void create_unicast_transfer_data(linkaddr_t border_router_addr, int type, struct sensor_info sensors[256], int nb_sensors); // usually coordinator transfering data of the sensors to the border_router
-void create_multicast_transfer_data(int type,int nb_sensors);
-void create_unicast_clock_update(linkaddr_t coordinator, clock_time_t clock_value,clock_time_t time_slot_start,int window,int duration);
+void create_multicast_message(int rssi, int nodeType,int type,clock_time_t clock_value);
+void create_unicast_message(linkaddr_t addr,int rssi, int nodeType,int type,clock_time_t clock_value);
+void create_unicast_message_data(linkaddr_t dest,linkaddr_t addr, int type, int data); //usually for sensors sending their data to coordinator
+void create_unicast_clock_update(linkaddr_t coordinator, clock_time_t clock_value,clock_time_t time_slot_start,int window,int num_coordinator);
 void create_multicast_clock_update(clock_time_t clock_value,int window,int num_coordinators);
 
 #endif // UTILS_H_
