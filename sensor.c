@@ -91,22 +91,16 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 	}
 	
 		if((msg->type == HELLO_TYPE && msg->nodeType == SENSOR)) {
-			int sensor_index = -1;
-			for(int i=0; i<num_sensors; i++){
-			if(linkaddr_cmp(&sensors_list[i].addr, src)){
-				sensor_index = i;
-				break;
-		}
-		}
-		if(sensor_index == -1 && msg->data == 0){
-		sensors_list[num_sensors].addr = *src; 
-		sensors_list[num_sensors].rssi = msg->rssi;
-		sensors_list[num_sensors].alive = 3;
-		num_sensors ++;
-		printf("Sensor node: %d.%d has been added to the list of %d sensors\n", src->u8[0], src->u8[1],num_sensors);
-		} else {
-		sensors_list[sensor_index].rssi = msg->rssi;
-		}
+			printf("HELLO TYPE FROM SENSOR WITH DATA VAL: %d\n",(int)msg->data);
+			if(msg->data == 0){
+			sensors_list[num_sensors].addr = *src; 
+			sensors_list[num_sensors].rssi = msg->rssi;
+			sensors_list[num_sensors].alive = 3;
+			num_sensors ++;
+			printf("Sensor node: %d.%d has been added to the list of %d sensors\n", src->u8[0], src->u8[1],num_sensors);
+			} else {
+			sensors_list[0].rssi = msg->rssi;
+			}
 	}
 		if(msg->type == RESPONSE_HELLO_MSG && msg->nodeType == SENSOR){
 			printf("Choose parent after response hello msg msg type: %ld\n",msg->data);
@@ -126,11 +120,6 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 			}else{
 				printf("SEND RESPONSEHELLO 0\n");
 				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, (int)0);
-				sensors_list[num_sensors].addr = *src; 
-				sensors_list[num_sensors].rssi = msg->rssi;
-				sensors_list[num_sensors].alive = 3;
-				num_sensors ++;
-				choose_parent();
 			}
 			
 		}
@@ -185,7 +174,7 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 void choose_parent() {	
 	printf("Come in choose parent\n");
 	if(num_coords == 0 && num_sensors == 0){
-  		create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, -1);
+  		create_multicast_message(packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, 0);
 
 	}
 	int previous_rssi = best_rssi_coord;
