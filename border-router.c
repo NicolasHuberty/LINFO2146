@@ -75,20 +75,18 @@ void input_callback(const void *data, uint16_t len,
     if(len == sizeof(struct message_data)){ //Receive a message data forwarded by a coordinator
 
     struct message_data *msg = (struct message_data *)data;
-    printf("border rcv data \n");
       for(int i = 0; i < num_coordinators; i++){
         if(linkaddr_cmp(&(coordinators[i].addr),(src))){ //Check wich coordinator contacts us
           bool found = false;
           for(int j = 0; j < coordinators[i].nb_sensors;j++){ //Check if sensor is found in the coordinator list
             if(linkaddr_cmp(&msg->addr,&coordinators[i].sensors[j].addr)){
               found = true;
-              printf("Print find sensor in border routeur\n");
               if (msg->data == -1){
-                printf("Delete sensor by border routeur\n");
                 for(int k = j;k < coordinators[i].nb_sensors -1;k++){
                   coordinators[i].sensors[j] = coordinators[i].sensors[j+1];
                 }
                 coordinators[i].nb_sensors -= 1;
+                printf("Deleted sensors for coord %d\n",i);
               }
               else{
                 coordinators[i].sensors[j].data = msg->data; //Update the sensor;
@@ -97,8 +95,8 @@ void input_callback(const void *data, uint16_t len,
             }
           }
             if(coordinators[i].nb_sensors == 0 || !found){ //Add a new sensor
-              coordinators[i].sensors[0].addr = msg->addr;
-              coordinators[i].sensors[0].data = msg->data;
+              coordinators[i].sensors[coordinators[i].nb_sensors].addr = msg->addr;
+              coordinators[i].sensors[coordinators[i].nb_sensors].data = msg->data;
               coordinators[i].nb_sensors+=1;
             }
         }

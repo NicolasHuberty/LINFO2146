@@ -59,7 +59,8 @@ void choose_parent();
 
 /*---------------------------------------------------------------------------*/
 void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const linkaddr_t *dest) {
-	struct message *msg = (struct message*) data;
+	printf("Receive something YOUHOUUU\n");
+  struct message *msg = (struct message*) data;
 
 	if(msg->type == HELLO_TYPE && msg->nodeType == COORDINATOR) { //Should be RESPOND_HELLO_TYPE BUT OK
 		create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, 0);
@@ -115,6 +116,7 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 
 	if(msg->type == DATA) { //If sensor receives data and has a coordinator -> Forward data with NOT_MY_DATA
 		//Reset alive values
+    printf("RECEIVE DATA\n");
 		for(int i = 0; i < num_sensors; i++){
 			if(linkaddr_cmp(src,&sensors_list[i].addr)){
 				sensors_list[i].alive = 3;
@@ -133,9 +135,10 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 	}
 
 	if(msg->type == ALLOW_SEND_DATA && msg->nodeType == COORDINATOR ){
-		//printf("Receive an ALLOW SEND DATA MESSAGE");
+		printf("Receive an ALLOW SEND DATA MESSAGE");
 		for(int i = 0; i < num_sensors; i++){
 			if(sensors_list[i].alive == 0){
+        //TO O
 				printf("Remove a sensor of the list\n");
       			for (uint8_t j = i; j < num_sensors - 1; j++) {
         			sensors_list[j] = sensors_list[j + 1];
@@ -156,12 +159,11 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
     //printf("Variable parent : %d\n", parent);
     for(int i = 0; i < num_sensors; i++){
         if (num_sensors > 0 && num_coords > 0 && parent == 1){
-				sensors_list[i].alive--;
-				//create_unicast_message(sensors_list[i].addr,packetbuf_attr(PACKETBUF_ATTR_RSSI),COORDINATOR,ALLOW_SEND_DATA,0);
-				create_unicast_message_data(sensors_list[i].addr, *src, NOT_MY_DATA, random_value);
-				printf("Forwarded allow message from sensor with addr: %d.%d connected to me\n", sensors_list[i].addr.u8[0],sensors_list[i].addr.u8[1]);
-        }  
-
+          sensors_list[i].alive--;
+          create_unicast_message(sensors_list[i].addr,packetbuf_attr(PACKETBUF_ATTR_RSSI),COORDINATOR,ALLOW_SEND_DATA,0);
+          //create_unicast_message_data(sensors_list[i].addr, *src, NOT_MY_DATA, random_value);
+          printf("Forwarded allow message from sensor with addr: %d.%d connected to me\n", sensors_list[i].addr.u8[0],sensors_list[i].addr.u8[1]);
+          }  
 			}
     }
 	}

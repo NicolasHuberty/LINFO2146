@@ -106,7 +106,7 @@
       <mote>
         <interface_config>
           org.contikios.cooja.interfaces.Position
-          <pos x="7.278721656062583" y="25.65986584852194" />
+          <pos x="34.55112601630921" y="21.95293710052725" />
         </interface_config>
         <interface_config>
           org.contikios.cooja.contikimote.interfaces.ContikiMoteID
@@ -116,11 +116,21 @@
       <mote>
         <interface_config>
           org.contikios.cooja.interfaces.Position
-          <pos x="30.352748381269784" y="-8.991430859751057" />
+          <pos x="9.848464854721506" y="-4.034351325860265" />
         </interface_config>
         <interface_config>
           org.contikios.cooja.contikimote.interfaces.ContikiMoteID
           <id>4</id>
+        </interface_config>
+      </mote>
+      <mote>
+        <interface_config>
+          org.contikios.cooja.interfaces.Position
+          <pos x="73.51005919362336" y="3.048435181815826" />
+        </interface_config>
+        <interface_config>
+          org.contikios.cooja.contikimote.interfaces.ContikiMoteID
+          <id>5</id>
         </interface_config>
       </mote>
     </motetype>
@@ -134,7 +144,7 @@
       <skin>org.contikios.cooja.plugins.skins.TrafficVisualizerSkin</skin>
       <skin>org.contikios.cooja.plugins.skins.UDGMVisualizerSkin</skin>
       <skin>org.contikios.cooja.plugins.skins.MoteTypeVisualizerSkin</skin>
-      <viewport>3.776711383398854 0.0 0.0 3.776711383398854 67.2578438124314 70.09504018914815</viewport>
+      <viewport>4.4380970387078476 0.0 0.0 4.4380970387078476 46.34566178716717 55.63211539968025</viewport>
     </plugin_config>
     <bounds x="1" y="1" height="400" width="400" />
   </plugin>
@@ -154,6 +164,7 @@
       <mote>1</mote>
       <mote>2</mote>
       <mote>3</mote>
+      <mote>4</mote>
       <showRadioRXTX />
       <showRadioHW />
       <showLEDs />
