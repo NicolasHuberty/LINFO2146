@@ -60,7 +60,7 @@ void choose_parent();
 void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const linkaddr_t *dest) {
 	if(len == sizeof(struct message)){
 		struct message *msg = (struct message*) data;
-		printf("Receive message with type %d, and nodeType %d and data %d\n", msg->type, msg->nodeType, (int)msg->data);
+		//printf("Receive message with type %d, and nodeType %d and data %d\n", msg->type, msg->nodeType, (int)msg->data);
 		if(msg->type == HELLO_TYPE && msg->nodeType == COORDINATOR) { //Should be RESPOND_HELLO_TYPE BUT OK
 			create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, HELLO_TYPE, 0);
 			printf("sensor respont to hello message to coord\n");
@@ -119,7 +119,7 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG,(int) 1);
 			}else{
 				printf("SEND RESPONSEHELLO 0\n");
-				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, TEST, (int)0);
+				create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG, (int)0);
 			}
 			
 		}
