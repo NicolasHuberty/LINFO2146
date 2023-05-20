@@ -75,6 +75,7 @@ void input_callback(const void *data, uint16_t len,
     if(len == sizeof(struct message_data)){ //Receive a message data forwarded by a coordinator
 
     struct message_data *msg = (struct message_data *)data;
+    //printf("Border rcv data\n");
       for(int i = 0; i < num_coordinators; i++){
         if(linkaddr_cmp(&(coordinators[i].addr),(src))){ //Check wich coordinator contacts us
           bool found = false;
