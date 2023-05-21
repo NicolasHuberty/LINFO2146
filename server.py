@@ -15,7 +15,7 @@ def main(ip, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((ip, port))
 
-    for _ in range(20): 
+    while True: 
         #sock.send(b"test\n")
         data = recv(sock)
         print(data.decode("utf-8") + 'rcv on server side')
@@ -30,4 +30,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args.ip, args.port)
-
