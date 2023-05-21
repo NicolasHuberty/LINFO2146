@@ -9,7 +9,7 @@
 #include "dev/serial-line.h"
 
 #define CLOCK_REQUEST_INTERVAL (5 * CLOCK_SECOND)
-#define WINDOW 1000
+#define WINDOW 5000
 
 static clock_time_t custom_clock_offset = 0;
 static struct etimer clock_request_timer;
@@ -52,6 +52,7 @@ void input_callback(const void *data, uint16_t len,
         }
         linkaddr_copy(&coordinators[num_coordinators].addr, src);
         coordinators[num_coordinators].nb_sensors = 0;
+        coordinators[num_coordinators].clock_value = 1;
         create_unicast_message(coordinators[num_coordinators].addr,packetbuf_attr(PACKETBUF_ATTR_RSSI),BORDER_ROUTER,HELLO_TYPE,(int)num_coordinators);
         num_coordinators++; 
     }
@@ -72,17 +73,18 @@ void input_callback(const void *data, uint16_t len,
       for(int i = 0; i < num_coordinators; i++){
         /*Check on the list of coordinator*/
         if(linkaddr_cmp(&(coordinators[i].addr),(src))){
+          coordinators[i].clock_value = 1;
           bool found = false;
           for(int j = 0; j < coordinators[i].nb_sensors;j++){
             if(linkaddr_cmp(&msg->addr,&coordinators[i].sensors[j].addr)){
               found = true;
               /*Check if the sensor has to be remove*/
               if (msg->data == -1){
+                printf("Delete sensor %d \n",coordinators[i].sensors[j].addr.u8[0]);
                 for(int k = j;k < coordinators[i].nb_sensors -1;k++){
                   coordinators[i].sensors[j] = coordinators[i].sensors[j+1];
                 }
                 coordinators[i].nb_sensors -= 1;
-                printf("Delete sensor of coord %d\n",i);
               }
               else{
                 coordinators[i].sensors[j].data = msg->data; //Update the sensor;

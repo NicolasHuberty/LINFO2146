@@ -100,13 +100,13 @@ void input_callback(const void *data, uint16_t len,
   /*Transfer a data from a sensor to the border router*/
   if (len == sizeof(struct message_data)){
     struct message_data *msg = (struct message_data *)data;
+    //printf("Receive data packet from sensor: %d\n",src->u8[0]);
     alive = 1;
     if(msg->type == NOT_MY_DATA){
       create_unicast_message_data(border_router,msg->addr,DATA,msg->data);
     }else{
       create_unicast_message_data(border_router,*src,DATA,msg->data);
     }
-    //printf("Coordinator transfer %d from sensor \n",(int) msg->data);
   }
   /*Receive a message to synchronize the clock_time*/
   if (len == sizeof(struct message_clock_update)){
@@ -145,7 +145,6 @@ PROCESS_THREAD(coordinator_node_process, ev, data){
     if(num_total_coordinators > 0 && custom_clock_time() > time_slot_start && custom_clock_time() < time_slot_start + window && nb_sensors > 0){
       /*Launch timeslot of next sensor*/
       if(etimer_expired(&sensors_slot) || current_sensor == -1){
-
         /*Remove the sensor if needed*/
         if (alive == 0){ 
           if (current_sensor == -1){
@@ -163,12 +162,14 @@ PROCESS_THREAD(coordinator_node_process, ev, data){
         alive = 0;
         current_sensor+=1;
         create_unicast_message(sensors_info[current_sensor].addr, packetbuf_attr(PACKETBUF_ATTR_RSSI), COORDINATOR, ALLOW_SEND_DATA, 0);
-        printf("Send allow data to sensor\n");
-        etimer_reset(&sensors_slot);
+        //printf("Send allow data to sensor %d\n",sensors_info[current_sensor].addr.u8[0]);
+        if(nb_sensors > 0){
+          etimer_set(&sensors_slot,(window/num_total_coordinators)/nb_sensors);
+        }
         if(current_sensor == nb_sensors-1){
           current_sensor = -1;
           time_slot_start += window;
-          etimer_reset(&sensors_slot);        
+          etimer_set(&sensors_slot,time_slot_start);
         }
       }
     }

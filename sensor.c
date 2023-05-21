@@ -34,6 +34,7 @@ struct coord_info coords[MAX_NODES];
 struct sensor_information sensors_list[MAX_NODES];
 int num_coords = 0;
 int num_sensors = 0;
+int master = 0;
 static int best_rssi_coord = -100;
 static int best_rssi_index_coord = -1;
 static int best_rssi_sensor = -100;
@@ -91,24 +92,27 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 	/*Send NEED_PARENT message if sensor is searching for a master node*/
 	if((msg->type == DO_YOU_NEED_PARENT && msg->nodeType == SENSOR)){
 		if(num_coords <= 0){
+			master = (int)src->u8[0];
 			create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG, (int)0);
 		}
 	}
 	/*Discover new sensor*/
 	if(msg->type == HELLO_TYPE && msg->nodeType == SENSOR) {
-		if(num_coords > 0){
-			create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, DO_YOU_NEED_PARENT,-1);
+		if(master != 0){
+			create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, DO_YOU_NEED_PARENT,0);
 		}else{
+			master = src->u8[0];
 			create_unicast_message(*src, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG, (int)0);
 		}
 	}
 	/*Coordinator allocates us the timeslot to send data*/
-	if(msg->type == ALLOW_SEND_DATA && msg->nodeType == COORDINATOR ){
+	if(msg->type == ALLOW_SEND_DATA && msg->nodeType == COORDINATOR && src->u8[0] == master){
 		if(timer_remaining(&alive.timer) < (int)(2*(clock_time()-previous_message_time))){
 			//Berkeley algo just restart with significatif modifications
 			etimer_set(&alive, (int)2*(clock_time()-previous_message_time));
 		}
 		previous_message_time = clock_time();
+		//printf("Send data after an ALLOW SEND DATA to %d\n",(int)src->u8[0]);
 		// Generate and send random data
 		int random_value = (random_rand() % 100) + 50;
 		create_unicast_message_data(*src,master_node,DATA,random_value);
@@ -117,9 +121,15 @@ void input_callback(const void *data, uint16_t len, const linkaddr_t *src, const
 		/*Sensor is master node of other sensors*/
 		if(num_sensors > 0 && num_coords > 0){ 
 			for(int i = 0; i < num_sensors; i++){
-				sensors_list[i].alive--;
-				create_unicast_message(sensors_list[i].addr,packetbuf_attr(PACKETBUF_ATTR_RSSI),COORDINATOR,ALLOW_SEND_DATA,0);
-				//printf("Forwarded allow message from sensor with addr: %d.%d connected to me\n", sensors_list[i].addr.u8[0],sensors_list[i].addr.u8[1]);
+				if(sensors_list[i].alive == 0){
+					printf("Remove sensor: %d of the list\n",(int)sensors_list[i].addr.u8[0]);
+					num_sensors --;
+					sensors_list[i].rssi = - 100;
+				}else{
+					sensors_list[i].alive--;
+					create_unicast_message(sensors_list[i].addr,packetbuf_attr(PACKETBUF_ATTR_RSSI),COORDINATOR,ALLOW_SEND_DATA,0);
+					//printf("Forwarded allow message from sensor with addr: %d.%d connected to me alive value: %d\n", sensors_list[i].addr.u8[0],sensors_list[i].addr.u8[1],sensors_list[i].alive);
+				}	
 			}
 		}
 	}
@@ -173,6 +183,7 @@ void choose_parent() {
 			master_node = coords[best_rssi_index_coord].addr;
 			printf("Selected parent is coord with addr: %d.%d\n", master_node.u8[0], master_node.u8[1]);
 			create_unicast_message(master_node, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, CHOSEN_PARENT, 0);
+			master = master_node.u8[0];
 			etimer_set(&alive,10*CLOCK_SECOND);
 		}else{
 			master_node.u8[0] = 0;
@@ -180,11 +191,13 @@ void choose_parent() {
 			printf("No candidates, parent addr is: %d.%d\n", master_node.u8[0], master_node.u8[1]);
 		}
 	/*Discover a better parent in sensor nodes*/
-	}else if(num_sensors > 0 && best_rssi_sensor != -100) {
+	}else if(num_sensors > 0 && best_rssi_sensor != -100 && num_coords < 1) {
 		if(best_rssi_index_sensor != -1) {
 		master_node = sensors_list[best_rssi_index_sensor].addr; 
 		printf("Selected parent is sensor (acting as coord) with addr: %d.%d\n", master_node.u8[0], master_node.u8[1]);
 		create_unicast_message(master_node, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, CHOSEN_PARENT, 0);
+		master = master_node.u8[0];
+		create_unicast_message(master_node, packetbuf_attr(PACKETBUF_ATTR_RSSI), SENSOR, RESPONSE_HELLO_MSG, (int)0);
 		etimer_set(&alive,10*CLOCK_SECOND);
 	} else {
 		master_node.u8[0] = 0;
@@ -208,6 +221,7 @@ PROCESS_THREAD(sensor_node_process, ev, data) {
       etimer_reset(&periodic_timer);
     }
     if(etimer_expired(&alive)){
+	  printf("Remove a coord");
       coords[best_rssi_index_coord].rssi = -100;
       best_rssi_coord = -1;
       if(num_coords > 0 ){
