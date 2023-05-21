@@ -160,14 +160,12 @@ void choose_parent() {
 	int previous_rssi = best_rssi_coord;
   	for(int i = 0; i < num_coords; i++) {
 		if(coords[i].rssi > best_rssi_coord) {
-			printf("Coord %d have a better rssi than: %d\n",i,best_rssi_index_coord);
 			best_rssi_coord = coords[i].rssi;
 			best_rssi_index_coord = i;
 		}
   	}
   	for(int i = 0; i < num_sensors; i++) {
 		if(sensors_list[i].rssi > best_rssi_sensor) {
-			printf("Sensor %d have a better rssi than: %d\n",i,best_rssi_index_sensor);
 			best_rssi_sensor = sensors_list[i].rssi;
 			best_rssi_index_sensor = i;
 		}
